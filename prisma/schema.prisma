@@ -1,13 +1,695 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ───
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  MANAGER
+  ENGINEER
+  VIEWER
+}
+
+enum Module {
+  invoices
+  customers
+  tickets
+  assets
+  projects
+  monitoring
+  field
+  dashboards
+}
+
+enum CustomerType {
+  BUSINESS
+  GOVERNMENT
+  NGO
+  INDIVIDUAL
+}
+
+enum ContractType {
+  SUPPORT
+  PROJECT
+  MANAGED_SERVICE
+  ONE_TIME
+}
+
+enum ContractStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  DRAFT
+}
+
+enum SiteType {
+  HEAD_OFFICE
+  BRANCH
+  DATA_CENTER
+  REMOTE
+}
+
+enum TicketType {
+  INCIDENT
+  SERVICE_REQUEST
+  CHANGE_REQUEST
+  PROBLEM
+}
+
+enum TicketPriority {
+  P1_CRITICAL
+  P2_HIGH
+  P3_MEDIUM
+  P4_LOW
+}
+
+enum TicketStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum AssetType {
+  FIREWALL
+  ROUTER
+  SWITCH
+  SERVER
+  UPS
+  WORKSTATION
+  OTHER
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  DECOMMISSIONED
+  RMA
+}
+
+enum ProjectType {
+  INSTALLATION
+  MIGRATION
+  ROLLOUT
+  SITE_ACCEPTANCE
+  OTHER
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum DocumentType {
+  ACCEPTANCE_FORM
+  DEPLOYMENT_CHECKLIST
+  SIGN_OFF
+  OTHER
+}
+
+enum AcceptanceResult {
+  ACCEPTED
+  ACCEPTED_WITH_CONDITIONS
+  REJECTED
+}
+
+enum InvoiceType {
+  PROFORMA
+  FINAL
+}
+
+enum InvoiceCategory {
+  NRC
+  MRC
+  ARC
+}
+
+enum FieldJobType {
+  INSTALLATION
+  MAINTENANCE
+  REPAIR
+  INSPECTION
+  SURVEY
+}
+
+enum FieldJobStatus {
+  ASSIGNED
+  ACCEPTED
+  EN_ROUTE
+  ON_SITE
+  COMPLETED
+  CANCELLED
+}
+
+enum MonitoringSourceType {
+  ZABBIX
+  PRTG
+  LIBRENMS
+}
+
+// ─── Auth & Users ───
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(VIEWER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userModules            UserModule[]
+  accounts               Account[]         @relation("UserAccounts")
+  sessions               Session[]
+  userFilters            UserFilter[]
+  assignedTickets        Ticket[]          @relation("AssignedTickets")
+  createdTickets         Ticket[]          @relation("CreatedTickets")
+  ticketComments         TicketComment[]
+  ticketAttachments      TicketAttachment[]
+  ticketAudits           TicketAudit[]
+  assetAudits            AssetAudit[]
+  managedCustomers       Customer[]        @relation("AccountManager")
+  managedProjects        Project[]         @relation("ProjectManager")
+  projectDocuments       ProjectDocument[]
+  projectAcceptances     ProjectAcceptance[]
+  createdInvoices        Invoice[]         @relation("InvoiceCreator")
+  fieldJobs              FieldJob[]        @relation("AssignedEngineer")
+  fieldPhotos            FieldJobPhoto[]
+  projectTasks           ProjectTask[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserModule {
+  id        String  @id @default(uuid())
+  userId    String
+  module    Module
+  canRead   Boolean @default(true)
+  canWrite  Boolean @default(false)
+  canDelete Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
+}
+
+model UserFilter {
+  id         String   @id @default(uuid())
+  userId     String
+  module     Module
+  filterName String
+  filterState Json
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CompanySettings {
+  id             String  @id @default(uuid())
+  companyName    String  @default("JENEUS CO. LTD")
+  companyAddress String  @default("Immeuble Commercial Bank, 4th Floor, Rue Njo Njo Bonapriso")
+  companyNiu     String  @default("M092217601761D")
+  companyRc      String  @default("RC/DLA/2022/B/5078")
+  accountOwner   String  @default("")
+  vatRate        Decimal @default(19.25) @db.Decimal(5, 2)
+  phone          String?
+  email          String?
+  logoUrl        String?
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── Customers ───
+
+model Customer {
+  id               String       @id @default(uuid())
+  name             String
+  customerType     CustomerType @default(BUSINESS)
+  address          String?
+  bp               String?
+  niu              String?
+  rc               String?
+  phone            String?
+  email            String?
+  website          String?
+  accountManagerId String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  accountManager  User?          @relation("AccountManager", fields: [accountManagerId], references: [id])
+  contacts        ContactPerson[]
+  contracts       Contract[]
+  sites           Site[]
+  tickets         Ticket[]
+  invoices        Invoice[]
+  projects        Project[]
+  fieldJobs       FieldJob[]
+  assets          Asset[]
+}
+
+model ContactPerson {
+  id         String  @id @default(uuid())
+  customerId String
+  firstName  String
+  lastName   String
+  title      String?
+  phone      String?
+  email      String?
+  isPrimary  Boolean @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model Contract {
+  id                  String         @id @default(uuid())
+  customerId          String
+  contractNumber      String         @unique
+  contractType        ContractType   @default(SUPPORT)
+  status              ContractStatus @default(DRAFT)
+  startDate           DateTime
+  endDate             DateTime
+  value               Decimal?       @db.Decimal(12, 2)
+  currency            String         @default("XAF")
+  slaTarget           Json?
+  maintenanceSchedule Json?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tickets  Ticket[]
+}
+
+model Site {
+  id         String   @id @default(uuid())
+  customerId String
+  name       String
+  address    String?
+  city       String?
+  gpsLat     Float?
+  gpsLong    Float?
+  siteType   SiteType @default(BRANCH)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tickets   Ticket[]
+  assets    Asset[]
+  fieldJobs FieldJob[]
+  projects  Project[]
+}
+
+// ─── Tickets ───
+
+model Ticket {
+  id                String         @id @default(uuid())
+  ticketNumber      String         @unique
+  type              TicketType     @default(INCIDENT)
+  priority          TicketPriority @default(P3_MEDIUM)
+  status            TicketStatus   @default(NEW)
+  subject           String
+  description       String?        @db.Text
+  customerId        String
+  siteId            String?
+  contactId         String?
+  assignedToId      String?
+  createdById       String
+  contractId        String?
+  slaDeadline       DateTime?
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  satisfactionRating Int?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  customer    Customer         @relation(fields: [customerId], references: [id])
+  site        Site?            @relation(fields: [siteId], references: [id])
+  contract    Contract?        @relation(fields: [contractId], references: [id])
+  assignedTo  User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy   User             @relation("CreatedTickets", fields: [createdById], references: [id])
+  comments    TicketComment[]
+  attachments TicketAttachment[]
+  links       TicketLink[]
+  audits      TicketAudit[]
+  fieldJobs   FieldJob[]
+}
+
+model TicketComment {
+  id         String   @id @default(uuid())
+  ticketId   String
+  userId     String
+  body       String   @db.Text
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model TicketAttachment {
+  id           String   @id @default(uuid())
+  ticketId     String
+  fileName     String
+  fileUrl      String
+  contentType  String
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+  // opposite: User.ticketAttachments
+}
+
+model TicketLink {
+  id         String   @id @default(uuid())
+  ticketId   String
+  linkedType String
+  linkedId   String
+  createdAt  DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model TicketAudit {
+  id        String   @id @default(uuid())
+  ticketId  String
+  userId    String
+  field     String
+  oldValue  String?
+  newValue  String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+// ─── Assets ───
+
+model Asset {
+  id              String      @id @default(uuid())
+  assetTag        String      @unique
+  type            AssetType   @default(OTHER)
+  manufacturer    String?
+  model           String?
+  serialNumber    String      @unique
+  firmwareVersion String?
+  hostname        String?
+  ipAddress       String?
+  customerId      String?
+  siteId          String?
+  status          AssetStatus @default(ACTIVE)
+  purchaseDate    DateTime?
+  purchaseCost    Decimal?    @db.Decimal(12, 2)
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customer   Customer?   @relation(fields: [customerId], references: [id])
+  site       Site?       @relation(fields: [siteId], references: [id])
+  licenses   License[]
+  warranties Warranty[]
+  audits     AssetAudit[]
+}
+
+model License {
+  id            String   @id @default(uuid())
+  assetId       String?
+  softwareName  String
+  licenseKey    String?
+  seats         Int      @default(1)
+  vendor        String?
+  vendorContact String?
+  startDate     DateTime
+  endDate       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  asset Asset? @relation(fields: [assetId], references: [id])
+}
+
+model Warranty {
+  id             String   @id @default(uuid())
+  assetId        String
+  type           String?
+  provider       String?
+  coverage       String?  @db.Text
+  contractNumber String?
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model AssetAudit {
+  id        String   @id @default(uuid())
+  assetId   String
+  userId    String
+  field     String
+  oldValue  String?
+  newValue  String
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+}
+
+// ─── Projects ───
+
+model Project {
+  id               String        @id @default(uuid())
+  projectNumber    String        @unique
+  name             String
+  type             ProjectType   @default(OTHER)
+  status           ProjectStatus @default(PLANNING)
+  customerId       String
+  siteId           String?
+  projectManagerId String?
+  startDate        DateTime?
+  endDate          DateTime?
+  budget           Decimal?      @db.Decimal(12, 2)
+  description      String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  customer       Customer          @relation(fields: [customerId], references: [id])
+  site           Site?             @relation(fields: [siteId], references: [id])
+  projectManager User?             @relation("ProjectManager", fields: [projectManagerId], references: [id])
+  tasks          ProjectTask[]
+  documents      ProjectDocument[]
+  acceptances    ProjectAcceptance[]
+  invoices       Invoice[]
+  fieldJobs      FieldJob[]
+}
+
+model ProjectTask {
+  id             String     @id @default(uuid())
+  projectId      String
+  title          String
+  description    String?    @db.Text
+  status         TaskStatus @default(TODO)
+  priority       String     @default("MEDIUM")
+  assignedToId   String?
+  parentTaskId   String?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  estimatedHours Decimal?   @db.Decimal(5, 1)
+  sortOrder      Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo User?         @relation(fields: [assignedToId], references: [id])
+  parentTask ProjectTask?  @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks   ProjectTask[] @relation("SubTasks")
+}
+
+model ProjectDocument {
+  id           String       @id @default(uuid())
+  projectId    String
+  fileName     String
+  fileUrl      String
+  contentType  String
+  documentType DocumentType @default(OTHER)
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+}
+
+model ProjectAcceptance {
+  id                   String           @id @default(uuid())
+  projectId            String
+  customerName         String
+  siteName             String
+  date                 DateTime
+  overallResult        AcceptanceResult
+  checklist            Json
+  customerSignatureUrl String?
+  engineerSignatureUrl String?
+  reportPdfUrl         String?
+  submittedById        String
+  createdAt            DateTime         @default(now())
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submittedBy User    @relation(fields: [submittedById], references: [id])
+}
+
+// ─── Invoices ───
+
+model Invoice {
+  id                    String      @id @default(uuid())
+  invoiceNumber         String      @unique
+  type                  InvoiceType @default(PROFORMA)
+  customerId            String
+  applyVat              Boolean     @default(true)
+  vatRate               Decimal     @default(19.25) @db.Decimal(5, 2)
+  nonRecurrentTotal     Decimal     @default(0) @db.Decimal(12, 2)
+  monthlyRecurrentTotal Decimal     @default(0) @db.Decimal(12, 2)
+  annualRecurrentTotal  Decimal     @default(0) @db.Decimal(12, 2)
+  vatAmount             Decimal     @default(0) @db.Decimal(12, 2)
+  grandTotal            Decimal     @default(0) @db.Decimal(12, 2)
+  accountOwner          String?
+  terms                 String?     @db.Text
+  createdById           String
+  projectId             String?
+  savedAt               DateTime    @default(now())
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  customer  Customer      @relation(fields: [customerId], references: [id])
+  createdBy User          @relation("InvoiceCreator", fields: [createdById], references: [id])
+  project   Project?      @relation(fields: [projectId], references: [id])
+  items     InvoiceItem[]
+}
+
+model InvoiceItem {
+  id          String          @id @default(uuid())
+  invoiceId   String
+  category    InvoiceCategory @default(NRC)
+  heading     String?
+  description String?         @db.Text
+  qty         Decimal         @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal         @default(0) @db.Decimal(12, 2)
+  total       Decimal         @default(0) @db.Decimal(12, 2)
+  sortOrder   Int             @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// ─── Field Engineer ───
+
+model FieldJob {
+  id                   String          @id @default(uuid())
+  jobNumber            String          @unique
+  type                 FieldJobType    @default(INSTALLATION)
+  status               FieldJobStatus  @default(ASSIGNED)
+  ticketId             String?
+  projectId            String?
+  customerId           String
+  siteId               String
+  assignedEngineerId   String
+  scheduledDate        DateTime
+  acceptedAt           DateTime?
+  checkInAt            DateTime?
+  checkOutAt           DateTime?
+  completedAt          DateTime?
+  checkInLat           Float?
+  checkInLng           Float?
+  notes                String?         @db.Text
+  findings             String?         @db.Text
+  recommendations      String?         @db.Text
+  partsUsed            Json?
+  reportPdfUrl         String?
+  customerSignatureUrl String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  ticket           Ticket?         @relation(fields: [ticketId], references: [id])
+  project          Project?        @relation(fields: [projectId], references: [id])
+  customer         Customer        @relation(fields: [customerId], references: [id])
+  site             Site            @relation(fields: [siteId], references: [id])
+  assignedEngineer User            @relation("AssignedEngineer", fields: [assignedEngineerId], references: [id])
+  photos           FieldJobPhoto[]
+}
+
+model FieldJobPhoto {
+  id           String   @id @default(uuid())
+  fieldJobId   String
+  fileUrl      String
+  caption      String?
+  gpsLat       Float?
+  gpsLong      Float?
+  takenAt      DateTime @default(now())
+  uploadedById String
+
+  fieldJob   FieldJob @relation(fields: [fieldJobId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation(fields: [uploadedById], references: [id])
+}
+
+// ─── Monitoring ───
+
+model MonitoringSource {
+  id         String               @id @default(uuid())
+  name       String
+  type       MonitoringSourceType
+  baseUrl    String
+  apiKey     String?
+  username   String?
+  password   String?
+  isActive   Boolean              @default(true)
+  lastSyncAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 }
