@@ -21,7 +21,7 @@ export function LoginForm() {
       router.push('/dashboard')
       router.refresh()
     } else {
-      setError(result.error)
+      setError(result.error || 'An error occurred')
     }
   }
 

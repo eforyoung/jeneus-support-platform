@@ -51,7 +51,7 @@ export function UserForm({
       const result = await updateUserModules(user.id, moduleList)
       setLoading(false)
       if (result.success) onSaved()
-      else setError(result.error)
+      else setError((result as any).error || 'Update failed')
     } else {
       // Create new
       const formData = new FormData()
@@ -65,7 +65,7 @@ export function UserForm({
       const result = await createUser(formData)
       setLoading(false)
       if (result.success) onSaved()
-      else setError(result.error)
+      else setError((result as any).error || 'Creation failed')
     }
   }
 

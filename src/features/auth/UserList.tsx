@@ -33,7 +33,7 @@ export function UserList({ users: initialUsers }: { users: User[] }) {
       setResetModal(null)
       setResetPassword('')
     } else {
-      alert(result.error)
+      alert((result as any).error || 'Reset failed')
     }
   }
 

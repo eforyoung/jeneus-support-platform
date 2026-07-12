@@ -40,7 +40,7 @@ export async function createUser(formData: FormData) {
     name: formData.get('name'),
     role: formData.get('role'),
   })
-  if (!parsed.success) return { success: false, error: parsed.error.errors[0].message }
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
 
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
   if (existing) return { success: false, error: 'Email already in use' }
@@ -74,7 +74,7 @@ export async function updateUserModules(
   await requireSuperAdmin()
   await prisma.userModule.deleteMany({ where: { userId } })
   if (modules.length > 0) {
-    await prisma.userModule.createMany({ data: modules.map((m) => ({ userId, ...m })) })
+    await prisma.userModule.createMany({ data: modules.map((m) => ({ userId, module: m.module as any, canRead: m.canRead, canWrite: m.canWrite, canDelete: m.canDelete })) })
   }
   revalidatePath('/dashboard/users')
   return { success: true }
