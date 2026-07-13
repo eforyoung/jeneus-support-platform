@@ -28,6 +28,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="text-center mb-8">
+        <img src="/logo.jpg" alt="JENEUS CO LTD" className="mx-auto mb-3" style={{ maxWidth: 100, maxHeight: 70 }} />
         <h1 className="text-2xl font-bold font-display text-white">JENEUS CO. LTD</h1>
         <p className="text-white/50 mt-1">Support Platform</p>
       </div>

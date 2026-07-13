@@ -119,9 +119,7 @@ export function InvoicePreview({
       {/* Header */}
       <div className="invoice-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
         <div className="logo-area">
-          <div style={{ width: 100, height: 60, background: '#f1f5f9', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7pt', color: '#94a3b8' }}>
-            LOGO
-          </div>
+          <img src="/logo.jpg" alt="JENEUS CO LTD" style={{ maxWidth: 90, maxHeight: 65 }} />
         </div>
         <div className="company-info" style={{ textAlign: 'right' }}>
           <div className="company-name" style={{ fontSize: '14pt', fontWeight: 700, color: '#1e3a5f' }}>

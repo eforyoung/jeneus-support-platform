@@ -45,6 +45,7 @@ export function Sidebar({
       <div className="p-4 flex items-center justify-between">
         {!collapsed && (
           <div>
+            <img src="/logo.jpg" alt="JENEUS CO LTD" className="mb-1" style={{ maxWidth: 80, maxHeight: 55 }} />
             <div className="font-display font-bold text-white text-sm">JENEUS CO. LTD</div>
             <div className="text-white/40 text-xs">Support Platform</div>
           </div>
