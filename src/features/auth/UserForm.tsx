@@ -6,7 +6,7 @@ import { createUser, updateUserModules } from './users-actions'
 
 const ALL_MODULES = [
   'invoices', 'customers', 'tickets', 'assets',
-  'projects', 'monitoring', 'field', 'dashboards',
+  'projects', 'dashboards',
 ] as const
 
 export function UserForm({

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   BarChart3, FileText, Users, Ticket, Server,
-  FolderKanban, Activity, Wrench, Shield, ChevronLeft,
+  FolderKanban, Shield, ChevronLeft,
 } from 'lucide-react'
 
 type NavItem = {
@@ -22,8 +22,6 @@ const navItems: NavItem[] = [
   { label: 'Tickets', icon: Ticket, href: '/dashboard/tickets' },
   { label: 'Assets', icon: Server, href: '/dashboard/assets' },
   { label: 'Projects', icon: FolderKanban, href: '/dashboard/projects' },
-  { label: 'Monitoring', icon: Activity, href: '/dashboard/monitoring' },
-  { label: 'Field', icon: Wrench, href: '/dashboard/field' },
   { label: 'Users', icon: Shield, href: '/dashboard/users', adminOnly: true },
 ]
 

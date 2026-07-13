@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
-  BarChart3, FileText, Ticket, Wrench,
-  MoreHorizontal, Users, Server, FolderKanban, Activity, Shield,
+  BarChart3, FileText, Ticket,
+  MoreHorizontal, Users, Server, FolderKanban, Shield,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -13,14 +13,12 @@ const mobileItems = [
   { label: 'Dashboard', icon: BarChart3, href: '/dashboard/dashboards' },
   { label: 'Invoices', icon: FileText, href: '/dashboard/invoices' },
   { label: 'Tickets', icon: Ticket, href: '/dashboard/tickets' },
-  { label: 'Field', icon: Wrench, href: '/dashboard/field' },
+  { label: 'Assets', icon: Server, href: '/dashboard/assets' },
 ]
 
 const moreItems = [
   { label: 'Customers', icon: Users, href: '/dashboard/customers' },
-  { label: 'Assets', icon: Server, href: '/dashboard/assets' },
   { label: 'Projects', icon: FolderKanban, href: '/dashboard/projects' },
-  { label: 'Monitor', icon: Activity, href: '/dashboard/monitoring' },
   { label: 'Users', icon: Shield, href: '/dashboard/users' },
 ]
 

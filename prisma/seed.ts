@@ -17,19 +17,23 @@ async function main() {
     },
   })
 
-  await prisma.companySettings.upsert({
-    where: { id: (await prisma.companySettings.findFirst())?.id || 'default' },
-    update: {},
-    create: {
-      companyName: 'JENEUS CO. LTD',
-      companyAddress: 'Immeuble Commercial Bank, 4th Floor, Rue Njo Njo Bonapriso',
-      companyNiu: 'M092217601761D',
-      companyRc: 'RC/DLA/2022/B/5078',
-      vatRate: 19.25,
-    },
-  })
+  // Create company settings if not exist (only one row expected)
+  const existing = await prisma.companySettings.findFirst()
+  if (!existing) {
+    await prisma.companySettings.create({
+      data: {
+        companyName: 'JENEUS CO. LTD',
+        companyAddress: 'Immeuble Commercial Bank, 4th Floor, Rue Njo Njo Bonapriso',
+        companyNiu: 'M092217601761D',
+        companyRc: 'RC/DLA/2022/B/5078',
+        accountOwner: '',
+        vatRate: 19.25,
+      },
+    })
+  }
 
-  console.log('Seed complete. Superadmin:', superadmin.email)
+  console.log('Seed complete.')
+  console.log('  Superadmin: admin@jeneustech.com / admin123')
 }
 
 main()

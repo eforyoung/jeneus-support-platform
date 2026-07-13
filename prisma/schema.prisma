@@ -23,8 +23,6 @@ enum Module {
   tickets
   assets
   projects
-  monitoring
-  field
   dashboards
 }
 
@@ -143,29 +141,6 @@ enum InvoiceCategory {
   ARC
 }
 
-enum FieldJobType {
-  INSTALLATION
-  MAINTENANCE
-  REPAIR
-  INSPECTION
-  SURVEY
-}
-
-enum FieldJobStatus {
-  ASSIGNED
-  ACCEPTED
-  EN_ROUTE
-  ON_SITE
-  COMPLETED
-  CANCELLED
-}
-
-enum MonitoringSourceType {
-  ZABBIX
-  PRTG
-  LIBRENMS
-}
-
 // ─── Auth & Users ───
 
 model User {
@@ -193,8 +168,6 @@ model User {
   projectDocuments       ProjectDocument[]
   projectAcceptances     ProjectAcceptance[]
   createdInvoices        Invoice[]         @relation("InvoiceCreator")
-  fieldJobs              FieldJob[]        @relation("AssignedEngineer")
-  fieldPhotos            FieldJobPhoto[]
   projectTasks           ProjectTask[]
 }
 
@@ -292,7 +265,7 @@ model Customer {
   tickets         Ticket[]
   invoices        Invoice[]
   projects        Project[]
-  fieldJobs       FieldJob[]
+
   assets          Asset[]
 }
 
@@ -345,7 +318,6 @@ model Site {
   customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
   tickets   Ticket[]
   assets    Asset[]
-  fieldJobs FieldJob[]
   projects  Project[]
 }
 
@@ -381,8 +353,7 @@ model Ticket {
   attachments TicketAttachment[]
   links       TicketLink[]
   audits      TicketAudit[]
-  fieldJobs   FieldJob[]
-}
+  }
 
 model TicketComment {
   id         String   @id @default(uuid())
@@ -530,7 +501,6 @@ model Project {
   documents      ProjectDocument[]
   acceptances    ProjectAcceptance[]
   invoices       Invoice[]
-  fieldJobs      FieldJob[]
 }
 
 model ProjectTask {
@@ -629,68 +599,3 @@ model InvoiceItem {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
-// ─── Field Engineer ───
-
-model FieldJob {
-  id                   String          @id @default(uuid())
-  jobNumber            String          @unique
-  type                 FieldJobType    @default(INSTALLATION)
-  status               FieldJobStatus  @default(ASSIGNED)
-  ticketId             String?
-  projectId            String?
-  customerId           String
-  siteId               String
-  assignedEngineerId   String
-  scheduledDate        DateTime
-  acceptedAt           DateTime?
-  checkInAt            DateTime?
-  checkOutAt           DateTime?
-  completedAt          DateTime?
-  checkInLat           Float?
-  checkInLng           Float?
-  notes                String?         @db.Text
-  findings             String?         @db.Text
-  recommendations      String?         @db.Text
-  partsUsed            Json?
-  reportPdfUrl         String?
-  customerSignatureUrl String?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-
-  ticket           Ticket?         @relation(fields: [ticketId], references: [id])
-  project          Project?        @relation(fields: [projectId], references: [id])
-  customer         Customer        @relation(fields: [customerId], references: [id])
-  site             Site            @relation(fields: [siteId], references: [id])
-  assignedEngineer User            @relation("AssignedEngineer", fields: [assignedEngineerId], references: [id])
-  photos           FieldJobPhoto[]
-}
-
-model FieldJobPhoto {
-  id           String   @id @default(uuid())
-  fieldJobId   String
-  fileUrl      String
-  caption      String?
-  gpsLat       Float?
-  gpsLong      Float?
-  takenAt      DateTime @default(now())
-  uploadedById String
-
-  fieldJob   FieldJob @relation(fields: [fieldJobId], references: [id], onDelete: Cascade)
-  uploadedBy User     @relation(fields: [uploadedById], references: [id])
-}
-
-// ─── Monitoring ───
-
-model MonitoringSource {
-  id         String               @id @default(uuid())
-  name       String
-  type       MonitoringSourceType
-  baseUrl    String
-  apiKey     String?
-  username   String?
-  password   String?
-  isActive   Boolean              @default(true)
-  lastSyncAt DateTime?
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
-}

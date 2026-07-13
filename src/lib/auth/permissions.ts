@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 
-export type Module = 'invoices' | 'customers' | 'tickets' | 'assets' | 'projects' | 'monitoring' | 'field' | 'dashboards'
+export type Module = 'invoices' | 'customers' | 'tickets' | 'assets' | 'projects' | 'dashboards'
 export type AccessAction = 'read' | 'write' | 'delete'
 
 export async function hasAccess(userId: string, module: Module, action: AccessAction): Promise<boolean> {
