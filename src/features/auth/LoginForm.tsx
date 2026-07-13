@@ -18,7 +18,7 @@ export function LoginForm() {
     const result = await loginAction(formData)
     setLoading(false)
     if (result.success) {
-      router.push('/dashboard')
+      router.push('/dashboard/dashboards')
       router.refresh()
     } else {
       setError(result.error || 'An error occurred')
