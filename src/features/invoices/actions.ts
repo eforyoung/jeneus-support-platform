@@ -121,7 +121,7 @@ export async function saveInvoice(rawData: unknown, existingId?: string) {
         }
       }
       if (allItems.length > 0) {
-        (tx.invoiceItem as any).createMany({ data: allItems })
+        await (tx.invoiceItem as any).createMany({ data: allItems })
       }
     })
 
