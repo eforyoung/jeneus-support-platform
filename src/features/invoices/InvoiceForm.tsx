@@ -122,18 +122,20 @@ export function InvoiceForm() {
   }
 
   async function handleEdit(invoice: any) {
-    // Fetch the full invoice with items from the database
-    const fullInvoice = await getInvoice(invoice.id)
-    if (!fullInvoice) {
-      setMessage({ type: 'error', text: 'Could not load invoice details.' })
-      return
-    }
-    setEditingId(fullInvoice.id)
-    const cats = { nrc: [] as SubSection[], mrc: [] as SubSection[], arc: [] as SubSection[] }
-    if (fullInvoice.items) {
+    try {
+      setMessage(null)
+      setSaving(true)
+      const fullInvoice = await getInvoice(invoice.id)
+      setSaving(false)
+      if (!fullInvoice) {
+        setMessage({ type: 'error', text: 'Could not load invoice — it may have been deleted.' })
+        return
+      }
+      const cats = { nrc: [] as SubSection[], mrc: [] as SubSection[], arc: [] as SubSection[] }
+      const items = Array.isArray(fullInvoice.items) ? fullInvoice.items : []
       const grouped: Record<string, SubSection> = {}
-      for (const item of fullInvoice.items) {
-        const cat = (item.category || 'NRC').toLowerCase() as 'nrc' | 'mrc' | 'arc'
+      for (const item of items) {
+        const cat = ((item.category || 'NRC') as string).toLowerCase() as 'nrc' | 'mrc' | 'arc'
         const key = `${cat}::${item.heading || ''}`
         if (!grouped[key]) {
           grouped[key] = { id: crypto.randomUUID(), heading: item.heading || '', items: [] }
@@ -141,30 +143,34 @@ export function InvoiceForm() {
         grouped[key].items.push({
           id: crypto.randomUUID(),
           description: item.description || '',
-          qty: Number(item.qty || 1),
-          unitPrice: Number(item.unitPrice || 0),
-          total: Number(item.total || 0),
+          qty: Number(item.qty) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          total: Number(item.total) || 0,
         })
       }
       for (const key of Object.keys(grouped)) {
         const cat = key.split('::')[0] as 'nrc' | 'mrc' | 'arc'
         cats[cat].push(grouped[key])
       }
-    }
 
-    setFormData({
-      type: (fullInvoice.type || 'PROFORMA').toLowerCase() as 'proforma' | 'final',
-      customerId: fullInvoice.customerId || '',
-      customerName: fullInvoice.customer?.name || '',
-      customerAddress: fullInvoice.customer?.address || '',
-      customerBp: fullInvoice.customer?.bp || '',
-      customerNiu: fullInvoice.customer?.niu || '',
-      customerRc: fullInvoice.customer?.rc || '',
-      applyVat: fullInvoice.applyVat ?? true,
-      accountOwner: fullInvoice.accountOwner || '',
-      terms: fullInvoice.terms || '',
-      categories: cats,
-    })
+      setEditingId(fullInvoice.id)
+      setFormData({
+        type: (fullInvoice.type || 'PROFORMA').toLowerCase() as 'proforma' | 'final',
+        customerId: fullInvoice.customerId || '',
+        customerName: fullInvoice.customer?.name || '',
+        customerAddress: fullInvoice.customer?.address || '',
+        customerBp: fullInvoice.customer?.bp || '',
+        customerNiu: fullInvoice.customer?.niu || '',
+        customerRc: fullInvoice.customer?.rc || '',
+        applyVat: fullInvoice.applyVat ?? true,
+        accountOwner: fullInvoice.accountOwner || '',
+        terms: fullInvoice.terms || '',
+        categories: cats,
+      })
+    } catch (err: any) {
+      setSaving(false)
+      setMessage({ type: 'error', text: `Edit failed: ${err?.message || 'Unknown error'}` })
+    }
   }
 
   function handleCancelEdit() {

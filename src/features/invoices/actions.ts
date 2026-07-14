@@ -210,13 +210,35 @@ export async function getInvoices() {
 }
 
 export async function getInvoice(id: string) {
-  return prisma.invoice.findUnique({
-    where: { id },
-    include: {
-      items: { orderBy: { sortOrder: 'asc' } },
-      customer: { select: { name: true, address: true, bp: true, niu: true, rc: true } },
-    },
-  })
+  try {
+    const inv = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        items: { orderBy: { sortOrder: 'asc' } },
+        customer: { select: { name: true, address: true, bp: true, niu: true, rc: true } },
+      },
+    })
+    if (!inv) return null
+
+    // Convert all Decimal fields to numbers for client serialization
+    return {
+      ...inv,
+      grandTotal: num(inv.grandTotal),
+      vatAmount: num(inv.vatAmount),
+      vatRate: num(inv.vatRate),
+      nonRecurrentTotal: num(inv.nonRecurrentTotal),
+      monthlyRecurrentTotal: num(inv.monthlyRecurrentTotal),
+      annualRecurrentTotal: num(inv.annualRecurrentTotal),
+      items: inv.items.map(it => ({
+        ...it,
+        qty: num(it.qty),
+        unitPrice: num(it.unitPrice),
+        total: num(it.total),
+      })),
+    }
+  } catch {
+    return null
+  }
 }
 
 export async function getCustomersForDropdown() {
