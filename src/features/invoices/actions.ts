@@ -33,8 +33,15 @@ export async function getNextInvoiceNumber(): Promise<string> {
 export async function saveInvoice(data: Record<string, unknown>, existingId?: string) {
   try {
     const session = await auth()
-    if (!session?.user) return { success: false as const, error: 'Not authenticated' }
-    const userId = (session.user as { id: string }).id
+    if (!session?.user?.email) return { success: false as const, error: 'Not authenticated' }
+
+    // Look up the real User row by email — ensures createdById is a valid FK
+    const dbUser = await prisma.user.findUnique({
+      where: { email: (session.user as { email: string }).email },
+      select: { id: true },
+    })
+    if (!dbUser) return { success: false as const, error: 'User not found in database' }
+    const userId = dbUser.id
 
     const type = (data.type as string) || 'proforma'
     const applyVat = data.applyVat !== false
