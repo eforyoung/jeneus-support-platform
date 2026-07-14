@@ -3,182 +3,213 @@
 import { prisma } from '@/lib/db/prisma'
 import { auth } from '@/lib/auth/config'
 import { revalidatePath } from 'next/cache'
-import { getNextInvoiceNumber } from './counter'
 
-// ─── Helpers ───
-
-function num(v: any, fallback = 0): number {
+function num(v: unknown, fallback = 0): number {
   const n = Number(v)
   return Number.isFinite(n) ? n : fallback
 }
 
-// ─── CRUD ───
+export async function getNextInvoiceNumber(): Promise<string> {
+  const now = new Date()
+  const dd = String(now.getDate()).padStart(2, '0')
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = now.getFullYear()
 
-export async function saveInvoice(data: Record<string, any>, existingId?: string) {
-  const session = await auth()
-  if (!session?.user) return { success: false, error: 'Not authenticated' }
-  const userId = (session.user as any).id
+  const last = await prisma.invoice.findFirst({
+    where: { invoiceNumber: { endsWith: `/JE/${dd}/${mm}/${yyyy}` } },
+    orderBy: { invoiceNumber: 'desc' },
+    select: { invoiceNumber: true },
+  })
 
-  const type = data.type || 'proforma'
-  const applyVat = data.applyVat !== false
-  const accountOwner = data.accountOwner || ''
-  const terms = data.terms || ''
-  const customerId = data.customerId || ''
-  let customerName = data.customerName || ''
-  const customerAddress = data.customerAddress || ''
-  const customerBp = data.customerBp || ''
-  const customerNiu = data.customerNiu || ''
-  const customerRc = data.customerRc || ''
-
-  if (!customerName.trim()) {
-    return { success: false, error: 'Client name is required.' }
+  let nextSeq = 1000
+  if (last?.invoiceNumber) {
+    const match = last.invoiceNumber.match(/^(\d+)\//)
+    if (match) nextSeq = Math.max(parseInt(match[1], 10) + 1, 1000)
   }
 
-  // Parse categories
-  const catsRaw = data.categories || { nrc: [], mrc: [], arc: [] }
-  const categories = {
-    nrc: Array.isArray(catsRaw.nrc) ? catsRaw.nrc : [],
-    mrc: Array.isArray(catsRaw.mrc) ? catsRaw.mrc : [],
-    arc: Array.isArray(catsRaw.arc) ? catsRaw.arc : [],
-  }
+  return `${String(nextSeq).padStart(4, '0')}/JE/${dd}/${mm}/${yyyy}`
+}
 
-  // Compute totals
-  function itemsTotal(items: any[]): number {
-    return (items || []).reduce((s: number, it: any) => s + num(it.qty) * num(it.unitPrice), 0)
-  }
-  const nrc = categories.nrc.reduce((s: number, sub: any) => s + itemsTotal(sub.items), 0)
-  const mrc = categories.mrc.reduce((s: number, sub: any) => s + itemsTotal(sub.items), 0)
-  const arc = categories.arc.reduce((s: number, sub: any) => s + itemsTotal(sub.items), 0)
-  const subtotal = nrc + mrc + arc
+export async function saveInvoice(data: Record<string, unknown>, existingId?: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false as const, error: 'Not authenticated' }
+    const userId = (session.user as { id: string }).id
 
-  const settings = await prisma.companySettings.findFirst()
-  const vatRate = settings ? num(settings.vatRate) / 100 : 0.1925
-  const vatAmount = applyVat ? Math.round(subtotal * vatRate) : 0
-  const grandTotal = subtotal + vatAmount
+    const type = (data.type as string) || 'proforma'
+    const applyVat = data.applyVat !== false
+    const accountOwner = (data.accountOwner as string) || ''
+    const terms = (data.terms as string) || ''
+    const customerId = (data.customerId as string) || ''
+    const customerName = (data.customerName as string || '').trim()
+    const customerAddress = (data.customerAddress as string) || ''
+    const customerBp = (data.customerBp as string) || ''
+    const customerNiu = (data.customerNiu as string) || ''
+    const customerRc = (data.customerRc as string) || ''
+    const catsRaw = (data.categories as Record<string, { heading?: string; items?: { description?: string; qty?: number; unitPrice?: number }[] }[]>) || { nrc: [], mrc: [], arc: [] }
 
-  // Resolve customer ID
-  let resolvedCustomerId = customerId
-  if (!resolvedCustomerId && customerName) {
-    const existing = await prisma.customer.findFirst({
-      where: { name: { equals: customerName, mode: 'insensitive' } },
-    })
-    if (existing) {
-      resolvedCustomerId = existing.id
-    } else {
-      const c = await prisma.customer.create({
-        data: {
-          name: customerName,
-          address: customerAddress || null,
-          bp: customerBp || null,
-          niu: customerNiu || null,
-          rc: customerRc || null,
-        },
-      })
-      resolvedCustomerId = c.id
+    if (!customerName) {
+      return { success: false as const, error: 'Client name is required.' }
     }
-  }
 
-  function flattenItems(invoiceId: string): any[] {
-    const result: any[] = []
-    let so = 0
+    // Compute totals from items
+    let nrc = 0, mrc = 0, arc = 0
+    const allItems: { cat: string; heading: string; description: string; qty: number; unitPrice: number; total: number }[] = []
+
     for (const cat of ['nrc', 'mrc', 'arc'] as const) {
-      for (const sub of categories[cat]) {
-        for (const item of sub.items || []) {
-          result.push({
-            invoiceId,
-            category: cat.toUpperCase(),
-            heading: sub.heading || '',
-            description: item.description || '',
-            qty: num(item.qty, 1),
-            unitPrice: num(item.unitPrice),
-            total: num(item.qty, 1) * num(item.unitPrice),
-            sortOrder: so++,
-          })
+      const subs = catsRaw[cat] || []
+      for (const sub of subs) {
+        const heading = sub.heading || ''
+        const items = sub.items || []
+        for (const item of items) {
+          const qty = num(item.qty, 1)
+          const unitPrice = num(item.unitPrice)
+          const total = qty * unitPrice
+          allItems.push({ cat, heading, description: item.description || '', qty, unitPrice, total })
+          if (cat === 'nrc') nrc += total
+          else if (cat === 'mrc') mrc += total
+          else arc += total
         }
       }
     }
-    return result
-  }
 
-  const invoiceData = {
-    type: type as any,
-    customerId: resolvedCustomerId || '',
-    applyVat,
-    vatRate: vatRate * 100,
-    nonRecurrentTotal: nrc,
-    monthlyRecurrentTotal: mrc,
-    annualRecurrentTotal: arc,
-    vatAmount,
-    grandTotal,
-    accountOwner,
-    terms,
-    createdById: userId,
-    savedAt: new Date(),
-  }
+    // VAT calculation
+    const settings = await prisma.companySettings.findFirst()
+    const vatRate = settings ? num(settings.vatRate) / 100 : 0.1925
+    const subtotal = nrc + mrc + arc
+    const vatAmount = applyVat ? Math.round(subtotal * vatRate) : 0
+    const grandTotal = subtotal + vatAmount
 
-  if (existingId) {
-    await prisma.invoiceItem.deleteMany({ where: { invoiceId: existingId } })
-    await prisma.invoice.update({ where: { id: existingId }, data: invoiceData })
-    const items = flattenItems(existingId)
-    if (items.length > 0) await (prisma.invoiceItem as any).createMany({ data: items })
+    // Resolve customer — auto-create if needed
+    let resolvedCustomerId = customerId
+    if (!resolvedCustomerId) {
+      const existing = await prisma.customer.findFirst({
+        where: { name: { equals: customerName, mode: 'insensitive' } },
+      })
+      if (existing) {
+        resolvedCustomerId = existing.id
+      } else {
+        const c = await prisma.customer.create({
+          data: {
+            name: customerName,
+            address: customerAddress || null,
+            bp: customerBp || null,
+            niu: customerNiu || null,
+            rc: customerRc || null,
+          },
+        })
+        resolvedCustomerId = c.id
+      }
+    }
+
+    if (existingId) {
+      // Update existing
+      await prisma.invoiceItem.deleteMany({ where: { invoiceId: existingId } })
+      await prisma.invoice.update({
+        where: { id: existingId },
+        data: {
+          type: type === 'final' ? 'FINAL' : 'PROFORMA',
+          customerId: resolvedCustomerId,
+          applyVat,
+          vatRate: vatRate * 100,
+          nonRecurrentTotal: nrc, monthlyRecurrentTotal: mrc, annualRecurrentTotal: arc,
+          vatAmount, grandTotal, accountOwner, terms, createdById: userId,
+        },
+      })
+      if (allItems.length > 0) {
+        await prisma.invoiceItem.createMany({
+          data: allItems.map((it, i) => ({
+            invoiceId: existingId,
+            category: it.cat.toUpperCase() as any,
+            heading: it.heading,
+            description: it.description,
+            qty: it.qty,
+            unitPrice: it.unitPrice,
+            total: it.total,
+            sortOrder: i,
+          })),
+        })
+      }
+      revalidatePath('/dashboard/invoices')
+      const inv = await prisma.invoice.findUnique({ where: { id: existingId }, select: { invoiceNumber: true } })
+      return { success: true as const, data: { id: existingId, number: inv?.invoiceNumber || '' } }
+    }
+
+    // Create new
+    const invoiceNumber = await getNextInvoiceNumber()
+    const invoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        type: type === 'final' ? 'FINAL' : 'PROFORMA',
+        customerId: resolvedCustomerId,
+        applyVat,
+        vatRate: vatRate * 100,
+        nonRecurrentTotal: nrc, monthlyRecurrentTotal: mrc, annualRecurrentTotal: arc,
+        vatAmount, grandTotal, accountOwner, terms,
+        createdById: userId,
+        savedAt: new Date(),
+      },
+    })
+    if (allItems.length > 0) {
+      await prisma.invoiceItem.createMany({
+        data: allItems.map((it, i) => ({
+          invoiceId: invoice.id,
+          category: it.cat.toUpperCase() as any,
+          heading: it.heading,
+          description: it.description,
+          qty: it.qty,
+          unitPrice: it.unitPrice,
+          total: it.total,
+          sortOrder: i,
+        })),
+      })
+    }
 
     revalidatePath('/dashboard/invoices')
-    const inv = await prisma.invoice.findUnique({ where: { id: existingId } })
-    return { success: true, data: { id: existingId, number: inv?.invoiceNumber || '' } }
+    return { success: true as const, data: { id: invoice.id, number: invoice.invoiceNumber } }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error saving invoice'
+    console.error('saveInvoice error:', message)
+    return { success: false as const, error: message }
   }
-
-  // Create new
-  const invoiceNumber = await getNextInvoiceNumber()
-  const invoice = await prisma.invoice.create({ data: { ...invoiceData, invoiceNumber } })
-  const items = flattenItems(invoice.id)
-  if (items.length > 0) await (prisma.invoiceItem as any).createMany({ data: items })
-
-  revalidatePath('/dashboard/invoices')
-  return { success: true, data: { id: invoice.id, number: invoice.invoiceNumber } }
 }
 
 export async function deleteInvoice(id: string) {
-  const session = await auth()
-  if (!session?.user) return { success: false, error: 'Not authenticated' }
-  await prisma.invoice.delete({ where: { id } })
-  revalidatePath('/dashboard/invoices')
-  return { success: true }
+  try {
+    await prisma.invoice.delete({ where: { id } })
+    revalidatePath('/dashboard/invoices')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Delete failed' }
+  }
 }
 
 export async function getInvoices() {
-  const session = await auth()
-  if (!session?.user) return []
-  const user = session.user as any
-  const where = (user.role === 'SUPERADMIN' || user.role === 'ADMIN') ? {} : { createdById: user.id }
+  try {
+    const session = await auth()
+    if (!session?.user) return []
+    const user = session.user as { id: string; role: string }
+    const where = (user.role === 'SUPERADMIN' || user.role === 'ADMIN') ? {} : { createdById: user.id }
 
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: { customer: { select: { name: true } } },
-    orderBy: { savedAt: 'desc' },
-  })
-  return invoices.map(inv => ({
-    ...inv,
-    grandTotal: num(inv.grandTotal),
-    vatAmount: num(inv.vatAmount),
-  }))
+    const invoices = await prisma.invoice.findMany({
+      where,
+      include: { customer: { select: { name: true } } },
+      orderBy: { savedAt: 'desc' },
+    })
+    return invoices.map(inv => ({ ...inv, grandTotal: num(inv.grandTotal) }))
+  } catch {
+    return []
+  }
 }
 
 export async function getInvoice(id: string) {
-  const inv = await prisma.invoice.findUnique({
+  return prisma.invoice.findUnique({
     where: { id },
     include: {
       items: { orderBy: { sortOrder: 'asc' } },
       customer: { select: { name: true, address: true, bp: true, niu: true, rc: true } },
     },
   })
-  if (!inv) return null
-  return {
-    ...inv,
-    grandTotal: num(inv.grandTotal),
-    vatAmount: num(inv.vatAmount),
-    vatRate: num(inv.vatRate),
-    items: inv.items.map(it => ({ ...it, qty: num(it.qty), unitPrice: num(it.unitPrice), total: num(it.total) })),
-  }
 }
 
 export async function getCustomersForDropdown() {
@@ -190,8 +221,7 @@ export async function getCustomersForDropdown() {
 
 export async function getCompanySettings() {
   const s = await prisma.companySettings.findFirst()
-  if (!s) return null
-  return { ...s, vatRate: num(s.vatRate) }
+  return s ? { ...s, vatRate: num(s.vatRate) } : null
 }
 
 export async function exportInvoicesJSON(): Promise<string> {
@@ -203,25 +233,38 @@ export async function exportInvoicesJSON(): Promise<string> {
 }
 
 export async function importInvoicesJSON(formData: FormData) {
-  const session = await auth()
-  if (!session?.user) return { success: false, error: 'Not authenticated' }
-  const file = formData.get('file') as File
-  if (!file) return { success: false, error: 'No file provided' }
-  const text = await file.text()
-  let data: any[]
-  try { data = JSON.parse(text) } catch { return { success: false, error: 'Invalid JSON' } }
-  if (!Array.isArray(data)) return { success: false, error: 'Expected array of invoices' }
-  let imported = 0
-  for (const inv of data) {
-    const exists = inv._id ? await prisma.invoice.findUnique({ where: { id: inv._id } }) : null
-    if (exists) continue
-    if (inv.id && inv.invoiceNumber && inv.customerId) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Not authenticated' }
+    const file = formData.get('file') as File
+    if (!file) return { success: false, error: 'No file provided' }
+    const text = await file.text()
+    const data = JSON.parse(text)
+    if (!Array.isArray(data)) return { success: false, error: 'Expected array' }
+    let imported = 0
+    for (const inv of data) {
+      if (!inv.id || !inv.invoiceNumber) continue
+      const exists = await prisma.invoice.findUnique({ where: { id: inv.id } })
+      if (exists) continue
       await prisma.invoice.create({
-        data: { id: inv.id, invoiceNumber: inv.invoiceNumber, type: inv.type || 'PROFORMA', customerId: inv.customerId, applyVat: inv.applyVat ?? true, vatRate: inv.vatRate ?? 19.25, nonRecurrentTotal: inv.nonRecurrentTotal ?? 0, monthlyRecurrentTotal: inv.monthlyRecurrentTotal ?? 0, annualRecurrentTotal: inv.annualRecurrentTotal ?? 0, vatAmount: inv.vatAmount ?? 0, grandTotal: inv.grandTotal ?? 0, accountOwner: inv.accountOwner || '', terms: inv.terms || '', createdById: (session.user as any).id, savedAt: inv.savedAt ? new Date(inv.savedAt) : new Date() },
+        data: {
+          id: inv.id, invoiceNumber: inv.invoiceNumber,
+          type: inv.type || 'PROFORMA', customerId: inv.customerId || '',
+          applyVat: inv.applyVat ?? true, vatRate: inv.vatRate ?? 19.25,
+          nonRecurrentTotal: inv.nonRecurrentTotal ?? 0,
+          monthlyRecurrentTotal: inv.monthlyRecurrentTotal ?? 0,
+          annualRecurrentTotal: inv.annualRecurrentTotal ?? 0,
+          vatAmount: inv.vatAmount ?? 0, grandTotal: inv.grandTotal ?? 0,
+          accountOwner: inv.accountOwner || '', terms: inv.terms || '',
+          createdById: (session.user as { id: string }).id,
+          savedAt: inv.savedAt ? new Date(inv.savedAt) : new Date(),
+        },
       })
       imported++
     }
+    revalidatePath('/dashboard/invoices')
+    return { success: true, data: { imported, skipped: data.length - imported } }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Import failed' }
   }
-  revalidatePath('/dashboard/invoices')
-  return { success: true, data: { imported, skipped: data.length - imported } }
 }

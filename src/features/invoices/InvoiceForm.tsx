@@ -89,28 +89,32 @@ export function InvoiceForm() {
     }
     setSaving(true)
     setMessage(null)
-    const result = await saveInvoice(formData, editingId || undefined)
-    setSaving(false)
-    if (result.success) {
-      setMessage({ type: 'success', text: `Invoice ${result.data?.number || ''} saved.` })
-      setRefreshHistory((x) => x + 1)
-      if (!editingId) {
-        // Reset form for new invoice
-        setFormData((prev) => ({
-          ...prev,
-          customerId: '',
-          customerName: '',
-          customerAddress: '',
-          customerBp: '',
-          customerNiu: '',
-          customerRc: '',
-          categories: { nrc: [], mrc: [], arc: [] },
-        }))
+    try {
+      const result = await saveInvoice(formData, editingId || undefined)
+      setSaving(false)
+      if (result.success) {
+        setMessage({ type: 'success', text: `Invoice ${result.data?.number || ''} saved.` })
+        setRefreshHistory((x) => x + 1)
+        if (!editingId) {
+          setFormData((prev) => ({
+            ...prev,
+            customerId: '',
+            customerName: '',
+            customerAddress: '',
+            customerBp: '',
+            customerNiu: '',
+            customerRc: '',
+            categories: { nrc: [], mrc: [], arc: [] },
+          }))
+        }
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Save failed' })
       }
-    } else {
-      setMessage({ type: 'error', text: (result as any).error || 'Save failed' })
+    } catch (err: any) {
+      setSaving(false)
+      setMessage({ type: 'error', text: err?.message || 'Save failed — check the console' })
     }
-    setTimeout(() => setMessage(null), 4000)
+    setTimeout(() => setMessage(null), 6000)
   }
 
   async function handlePDF() {
