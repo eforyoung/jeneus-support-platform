@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button, Input, Textarea, Card, Badge } from '@/lib/ui'
 import { saveInvoice, getCustomersForDropdown, getCompanySettings, getInvoice } from './actions'
 import { InvoicePreview } from './InvoicePreview'
-import { generatePDF } from './InvoicePDF'
+import { generatePDFDirect } from './InvoicePDF'
 import { ItemsTable } from './ItemsTable'
 import { InvoiceHistoryList } from './InvoiceHistoryList'
 import type { InvoiceFormData, SubSection } from './types'
@@ -126,7 +126,7 @@ export function InvoiceForm() {
     const filename = formData.invoiceNumber
       ? `Invoice-${formData.invoiceNumber.replace(/\//g, '-')}`
       : 'Invoice-draft'
-    await generatePDF('invoice-preview', filename)
+    generatePDFDirect(formData, companySettings, filename)
   }
 
   async function handleEdit(invoice: any) {
