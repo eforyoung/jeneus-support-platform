@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button, Input, Textarea, Card, Badge } from '@/lib/ui'
-import { saveInvoice, getCustomersForDropdown, getCompanySettings } from './actions'
+import { saveInvoice, getCustomersForDropdown, getCompanySettings, getInvoice } from './actions'
 import { InvoicePreview } from './InvoicePreview'
 import { generatePDF } from './InvoicePDF'
 import { ItemsTable } from './ItemsTable'
@@ -121,12 +121,18 @@ export function InvoiceForm() {
     await generatePDF('invoice-preview', 'invoice-download')
   }
 
-  function handleEdit(invoice: any) {
-    setEditingId(invoice.id)
+  async function handleEdit(invoice: any) {
+    // Fetch the full invoice with items from the database
+    const fullInvoice = await getInvoice(invoice.id)
+    if (!fullInvoice) {
+      setMessage({ type: 'error', text: 'Could not load invoice details.' })
+      return
+    }
+    setEditingId(fullInvoice.id)
     const cats = { nrc: [] as SubSection[], mrc: [] as SubSection[], arc: [] as SubSection[] }
-    if (invoice.items) {
+    if (fullInvoice.items) {
       const grouped: Record<string, SubSection> = {}
-      for (const item of invoice.items) {
+      for (const item of fullInvoice.items) {
         const cat = (item.category || 'NRC').toLowerCase() as 'nrc' | 'mrc' | 'arc'
         const key = `${cat}::${item.heading || ''}`
         if (!grouped[key]) {
@@ -134,10 +140,10 @@ export function InvoiceForm() {
         }
         grouped[key].items.push({
           id: crypto.randomUUID(),
-          description: item.description,
-          qty: Number(item.qty),
-          unitPrice: Number(item.unitPrice),
-          total: Number(item.total),
+          description: item.description || '',
+          qty: Number(item.qty || 1),
+          unitPrice: Number(item.unitPrice || 0),
+          total: Number(item.total || 0),
         })
       }
       for (const key of Object.keys(grouped)) {
@@ -147,16 +153,16 @@ export function InvoiceForm() {
     }
 
     setFormData({
-      type: (invoice.type || 'PROFORMA').toLowerCase() as 'proforma' | 'final',
-      customerId: invoice.customerId || '',
-      customerName: invoice.customer?.name || '',
-      customerAddress: invoice.customer?.address || '',
-      customerBp: invoice.customer?.bp || '',
-      customerNiu: invoice.customer?.niu || '',
-      customerRc: invoice.customer?.rc || '',
-      applyVat: invoice.applyVat ?? true,
-      accountOwner: invoice.accountOwner || '',
-      terms: invoice.terms || '',
+      type: (fullInvoice.type || 'PROFORMA').toLowerCase() as 'proforma' | 'final',
+      customerId: fullInvoice.customerId || '',
+      customerName: fullInvoice.customer?.name || '',
+      customerAddress: fullInvoice.customer?.address || '',
+      customerBp: fullInvoice.customer?.bp || '',
+      customerNiu: fullInvoice.customer?.niu || '',
+      customerRc: fullInvoice.customer?.rc || '',
+      applyVat: fullInvoice.applyVat ?? true,
+      accountOwner: fullInvoice.accountOwner || '',
+      terms: fullInvoice.terms || '',
       categories: cats,
     })
   }
