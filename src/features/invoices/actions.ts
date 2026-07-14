@@ -18,14 +18,14 @@ const itemSchema = z.object({
 
 const subSectionSchema = z.object({
   id: z.string().optional(),
-  heading: z.string().min(1, 'Heading required'),
-  items: z.array(itemSchema).min(1, 'At least one item required'),
+  heading: z.string().optional().default(''),
+  items: z.array(itemSchema).optional().default([]),
 })
 
 const invoiceSchema = z.object({
   type: z.enum(['proforma', 'final']),
-  customerId: z.string(),
-  customerName: z.string().min(1),
+  customerId: z.string().optional().default(''),
+  customerName: z.string().optional().default(''),
   customerAddress: z.string().optional().default(''),
   customerBp: z.string().optional().default(''),
   customerNiu: z.string().optional().default(''),
@@ -39,21 +39,6 @@ const invoiceSchema = z.object({
     arc: z.array(subSectionSchema).optional().default([]),
   }),
 })
-
-// ─── Helpers ───
-
-function computeTotals(data: z.infer<typeof invoiceSchema>) {
-  const nrc = data.categories.nrc.reduce(
-    (s, sub) => s + sub.items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0), 0)
-  const mrc = data.categories.mrc.reduce(
-    (s, sub) => s + sub.items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0), 0)
-  const arc = data.categories.arc.reduce(
-    (s, sub) => s + sub.items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0), 0)
-  const subtotal = nrc + mrc + arc
-
-  const settings = prisma.companySettings.findFirst()
-  return { nrc, mrc, arc, subtotal }
-}
 
 // ─── CRUD ───
 
@@ -81,9 +66,31 @@ export async function saveInvoice(rawData: unknown, existingId?: string) {
   const vatAmount = data.applyVat ? Math.round(subtotal * vatRate) : 0
   const grandTotal = subtotal + vatAmount
 
+  // Auto-create customer if name provided but no customerId
+  let customerId = data.customerId
+  if (!customerId && data.customerName) {
+    const existing = await prisma.customer.findFirst({
+      where: { name: { equals: data.customerName, mode: 'insensitive' } },
+    })
+    if (existing) {
+      customerId = existing.id
+    } else {
+      const newCustomer = await prisma.customer.create({
+        data: {
+          name: data.customerName,
+          address: data.customerAddress || null,
+          bp: data.customerBp || null,
+          niu: data.customerNiu || null,
+          rc: data.customerRc || null,
+        },
+      })
+      customerId = newCustomer.id
+    }
+  }
+
   const invoiceData = {
     type: data.type as any,
-    customerId: data.customerId,
+    customerId: customerId || '',
     applyVat: data.applyVat,
     vatRate: vatRate * 100,
     nonRecurrentTotal: nrc,
@@ -98,11 +105,11 @@ export async function saveInvoice(rawData: unknown, existingId?: string) {
   }
 
   if (existingId) {
-    // Update
     await prisma.$transaction(async (tx) => {
       await tx.invoiceItem.deleteMany({ where: { invoiceId: existingId } })
       await tx.invoice.update({ where: { id: existingId }, data: invoiceData })
-      const allItems: { invoiceId: string; category: string; heading: string; description: string; qty: number; unitPrice: number; total: number; sortOrder: number }[] = []
+
+      const allItems: any[] = []
       let sortOrder = 0
       for (const cat of ['nrc', 'mrc', 'arc'] as const) {
         for (const sub of data.categories[cat]) {
@@ -138,14 +145,14 @@ export async function saveInvoice(rawData: unknown, existingId?: string) {
       data: { ...invoiceData, invoiceNumber },
     })
 
-    const allItems: { invoiceId: string; category: string; heading: string; description: string; qty: number; unitPrice: number; total: number; sortOrder: number }[] = []
+    const allItems: any[] = []
     let sortOrder = 0
     for (const cat of ['nrc', 'mrc', 'arc'] as const) {
       for (const sub of data.categories[cat]) {
         for (const item of sub.items) {
           allItems.push({
             invoiceId: inv.id,
-            category: cat.toUpperCase() as any,
+            category: cat.toUpperCase(),
             heading: sub.heading,
             description: item.description,
             qty: item.qty,
@@ -180,8 +187,15 @@ export async function getInvoices() {
   const session = await auth()
   if (!session?.user) return []
 
+  const user = session.user as any
+
+  // SUPERADMIN and ADMIN see all invoices; others see only their own
+  const where = (user.role === 'SUPERADMIN' || user.role === 'ADMIN')
+    ? {}
+    : { createdById: user.id }
+
   return prisma.invoice.findMany({
-    where: { createdById: (session.user as any).id },
+    where,
     include: { customer: { select: { name: true } } },
     orderBy: { savedAt: 'desc' },
   })
@@ -190,7 +204,10 @@ export async function getInvoices() {
 export async function getInvoice(id: string) {
   return prisma.invoice.findUnique({
     where: { id },
-    include: { items: { orderBy: { sortOrder: 'asc' } }, customer: { select: { name: true, address: true, bp: true, niu: true, rc: true } } },
+    include: {
+      items: { orderBy: { sortOrder: 'asc' } },
+      customer: { select: { name: true, address: true, bp: true, niu: true, rc: true } },
+    },
   })
 }
 
@@ -233,16 +250,6 @@ export async function importInvoicesJSON(formData: FormData) {
     if (exists) continue
 
     if (inv.id && inv.invoiceNumber && inv.customerId) {
-      const items = (inv.items || []).map((it: any, i: number) => ({
-        category: it.category || 'NRC',
-        heading: it.heading || '',
-        description: it.description || '',
-        qty: Number(it.qty) || 1,
-        unitPrice: Number(it.unitPrice) || 0,
-        total: Number(it.total) || 0,
-        sortOrder: i,
-      }))
-
       await prisma.invoice.create({
         data: {
           id: inv.id,
@@ -260,7 +267,6 @@ export async function importInvoicesJSON(formData: FormData) {
           terms: inv.terms || '',
           createdById: (session.user as any).id,
           savedAt: inv.savedAt ? new Date(inv.savedAt) : new Date(),
-          items: items.length > 0 ? { create: items } : undefined,
         },
       })
       imported++

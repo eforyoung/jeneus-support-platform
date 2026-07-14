@@ -13,10 +13,10 @@ export async function getNextInvoiceNumber(): Promise<string> {
       select: { invoiceNumber: true },
     })
 
-    let nextSeq = 1
+    let nextSeq = 1000
     if (last) {
       const match = last.invoiceNumber.match(/^(\d+)\//)
-      if (match) nextSeq = parseInt(match[1], 10) + 1
+      if (match) nextSeq = Math.max(parseInt(match[1], 10) + 1, 1000)
     }
 
     const number = `${String(nextSeq).padStart(4, '0')}/JE/${dd}/${mm}/${yyyy}`
