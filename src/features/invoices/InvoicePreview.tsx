@@ -12,6 +12,26 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+const S = {
+  // Spacing
+  page:      { padding: '24px 28px', maxWidth: 700 },
+  header:    { marginBottom: 10, paddingBottom: 8 },
+  section:   { marginBottom: 8 },
+  itemTable: { marginBottom: 2 },
+  totals:    { paddingTop: 8, marginTop: 6 },
+  amounts:   { marginTop: 8 },
+  terms:     { marginTop: 14, paddingTop: 8 },
+  // Font sizes
+  company:   '12pt',
+  label:     '10pt',
+  heading:   '10pt',
+  subhead:   '9pt',
+  body:      '9pt',
+  small:     '8pt',
+  // Colors
+  navy:      '#1e3a5f',
+}
+
 export function InvoicePreview({
   data,
   companySettings,
@@ -31,9 +51,7 @@ export function InvoicePreview({
   const typeLabel = data.type === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE'
   const formattedDate = getTodayFormatted()
   const cs = companySettings
-
-  // Format invoice number for preview — show real number if set, show placeholder pattern if not
-  const displayNumber = data.invoiceNumber || 'XXXX/JE/DD/MM/YYYY'
+  const displayNumber = data.invoiceNumber || ''
 
   // Client info lines
   const clientLines: string[] = [esc(data.customerName || '')]
@@ -45,47 +63,42 @@ export function InvoicePreview({
   const renderSection = (title: string, subs: InvoiceFormData['categories']['nrc']) => {
     if (subs.length === 0) return null
     return (
-      <div style={{ marginBottom: 12 }}>
-        <div style={{
-          fontWeight: 700, fontSize: '11pt', marginBottom: 6, color: '#1e3a5f',
-          borderBottom: '1px solid #1e3a5f', paddingBottom: 2,
-        }}>
+      <div style={{ marginBottom: S.section.marginBottom }}>
+        <div style={{ fontWeight: 700, fontSize: S.subhead, marginBottom: 3, color: S.navy, borderBottom: `1px solid ${S.navy}`, paddingBottom: 2 }}>
           {title}
         </div>
         {subs.map((sub) => {
           const subTotal = sub.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
           return (
-            <div key={sub.id} style={{ marginBottom: 10 }}>
-              <div style={{ fontWeight: 700, fontSize: '10pt', marginBottom: 4, color: '#1e3a5f' }}>
+            <div key={sub.id} style={{ marginBottom: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: S.small, marginBottom: 2, color: S.navy }}>
                 {esc(sub.heading || 'Services')}
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: S.itemTable.marginBottom }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 600, fontSize: '9pt', color: '#64748b' }}>Description</th>
-                    <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 600, fontSize: '9pt', color: '#64748b', width: 50 }}>Qty</th>
-                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600, fontSize: '9pt', color: '#64748b', width: 120 }}>Unit Price (XAF)</th>
-                    <th style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 600, fontSize: '9pt', color: '#64748b', width: 120 }}>Total Price (XAF)</th>
+                    <th style={{ textAlign: 'left', padding: '2px 6px', fontWeight: 600, fontSize: S.small, color: '#64748b' }}>Description</th>
+                    <th style={{ textAlign: 'center', padding: '2px 6px', fontWeight: 600, fontSize: S.small, color: '#64748b', width: 42 }}>Qty</th>
+                    <th style={{ textAlign: 'right', padding: '2px 6px', fontWeight: 600, fontSize: S.small, color: '#64748b', width: 100 }}>Unit Price (XAF)</th>
+                    <th style={{ textAlign: 'right', padding: '2px 6px', fontWeight: 600, fontSize: S.small, color: '#64748b', width: 100 }}>Total Price (XAF)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sub.items.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} style={{ color: '#999', textAlign: 'center', padding: '8px', fontSize: '10pt' }}>No items</td>
-                    </tr>
+                    <tr><td colSpan={4} style={{ color: '#999', textAlign: 'center', padding: '3px', fontSize: S.small }}>No items</td></tr>
                   ) : (
                     sub.items.map((item) => (
-                      <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '10pt' }}>
-                        <td style={{ padding: '4px 8px' }}>{esc(item.description || '—')}</td>
-                        <td style={{ textAlign: 'center', padding: '4px 8px' }}>{item.qty}</td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px' }}>{fmt(item.unitPrice)}</td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px' }}>{fmt(item.qty * item.unitPrice)}</td>
+                      <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: S.small }}>
+                        <td style={{ padding: '2px 6px' }}>{esc(item.description || '—')}</td>
+                        <td style={{ textAlign: 'center', padding: '2px 6px' }}>{item.qty}</td>
+                        <td style={{ textAlign: 'right', padding: '2px 6px' }}>{fmt(item.unitPrice)}</td>
+                        <td style={{ textAlign: 'right', padding: '2px 6px' }}>{fmt(item.qty * item.unitPrice)}</td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
-              <div style={{ textAlign: 'right', fontSize: '9pt', fontWeight: 600, color: '#1e3a5f' }}>
+              <div style={{ textAlign: 'right', fontSize: S.small, fontWeight: 600, color: S.navy }}>
                 {esc(sub.heading || 'Subtotal')}: {fmt(subTotal)} XAF
               </div>
             </div>
@@ -98,43 +111,42 @@ export function InvoicePreview({
   return (
     <div id="invoice-preview" style={{
       fontFamily: 'Georgia, "Times New Roman", serif',
-      fontSize: '10pt',
+      fontSize: S.body,
       color: '#1e293b',
       background: '#fff',
-      padding: '40px 36px',
+      padding: S.page.padding,
       borderRadius: 4,
       boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-      lineHeight: 1.6,
-      maxWidth: 760,
+      lineHeight: 1.5,
+      maxWidth: S.page.maxWidth,
       margin: '0 auto',
     }}>
       {/* ─── Header ─── */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 18, borderBottom: '1px solid #cbd5e1', paddingBottom: 14 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: S.header.marginBottom, borderBottom: '1px solid #cbd5e1', paddingBottom: S.header.paddingBottom }}>
         <tbody>
           <tr>
-            <td style={{ verticalAlign: 'top', width: 100 }}>
-              <img src="/logo.jpg" alt="JENEUS CO LTD" style={{ maxWidth: 90, maxHeight: 65 }} />
+            <td style={{ verticalAlign: 'top', width: 80 }}>
+              <img src="/logo.jpg" alt="JENEUS CO LTD" style={{ maxWidth: 75, maxHeight: 50 }} />
             </td>
             <td style={{ verticalAlign: 'top', textAlign: 'right' }}>
-              <div style={{ fontSize: '14pt', fontWeight: 700, color: '#1e3a5f', marginBottom: 2 }}>
+              <div style={{ fontSize: S.company, fontWeight: 700, color: S.navy, marginBottom: 1 }}>
                 {cs?.companyName || 'JENEUS CO. LTD'}
               </div>
-              <div style={{ fontSize: '9pt', color: '#334155' }}>
+              <div style={{ fontSize: S.small, color: '#334155', lineHeight: 1.4 }}>
                 {(cs?.companyAddress || 'Immeuble Commercial Bank, 4th Floor').split('\n').map((l: string, i: number) => (
                   <div key={i}>{l}</div>
                 ))}
+                Rue Njo Njo Bonapriso
               </div>
-              <div style={{ fontSize: '9pt', color: '#334155' }}>Rue Njo Njo Bonapriso</div>
-              <div style={{ fontSize: '9pt', color: '#334155' }}>NIU: {cs?.companyNiu || 'M092217601761D'}</div>
-              <div style={{ fontSize: '9pt', color: '#334155' }}>RC: {cs?.companyRc || 'RC/DLA/2022/B/5078'}</div>
+              <div style={{ fontSize: S.small, color: '#334155', lineHeight: 1.4 }}>
+                NIU: {cs?.companyNiu || 'M092217601761D'} &nbsp;|&nbsp; RC: {cs?.companyRc || 'RC/DLA/2022/B/5078'}
+              </div>
               {data.accountOwner && (
-                <div style={{ fontSize: '9pt', color: '#334155' }}>Account Manager: {esc(data.accountOwner)}</div>
+                <div style={{ fontSize: S.small, color: '#334155' }}>
+                  Account Manager: {esc(data.accountOwner)}
+                </div>
               )}
-              <div style={{
-                marginTop: 8, padding: '5px 14px', display: 'inline-block',
-                fontSize: '11pt', fontWeight: 700, color: '#1e3a5f',
-                border: '2px solid #1e3a5f', borderRadius: 4,
-              }}>
+              <div style={{ marginTop: 5, padding: '3px 10px', display: 'inline-block', fontSize: S.label, fontWeight: 700, color: S.navy, border: `2px solid ${S.navy}`, borderRadius: 3 }}>
                 {typeLabel}
               </div>
             </td>
@@ -143,18 +155,18 @@ export function InvoicePreview({
       </table>
 
       {/* ─── Client & Date ─── */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
         <tbody>
           <tr>
             <td style={{ verticalAlign: 'top', width: '60%' }}>
-              <strong style={{ fontSize: '10pt' }}>Client:</strong><br />
+              <strong style={{ fontSize: S.body }}>Client:</strong><br />
               {clientLines.map((line, i) => (
-                <span key={i} style={{ fontSize: '10pt' }}>{line}<br /></span>
+                <span key={i} style={{ fontSize: S.body }}>{line}<br /></span>
               ))}
             </td>
             <td style={{ verticalAlign: 'top', textAlign: 'right' }}>
-              <span style={{ fontSize: '10pt' }}>Douala, {formattedDate}</span><br />
-              <strong style={{ fontSize: '10pt', fontFamily: 'monospace' }}>{displayNumber}</strong>
+              <span style={{ fontSize: S.body }}>Douala, {formattedDate}</span><br />
+              <strong style={{ fontSize: S.body, fontFamily: 'monospace' }}>{displayNumber}</strong>
             </td>
           </tr>
         </tbody>
@@ -166,36 +178,36 @@ export function InvoicePreview({
       {renderSection('ANNUAL RECURRENT CHARGE', data.categories.arc)}
 
       {/* ─── Totals ─── */}
-      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: 14, marginTop: 8 }}>
-        <table style={{ width: '100%', maxWidth: 340, marginLeft: 'auto', fontSize: '10pt', borderCollapse: 'collapse' }}>
+      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: S.totals.paddingTop, marginTop: S.totals.marginTop }}>
+        <table style={{ width: '100%', maxWidth: 300, marginLeft: 'auto', fontSize: S.small, borderCollapse: 'collapse' }}>
           <tbody>
             {nrcTotal > 0 && (
               <tr>
-                <td style={{ padding: '2px 0', color: '#334155' }}>Non-Recurrent Charge Total</td>
-                <td style={{ textAlign: 'right', padding: '2px 0', fontWeight: 600 }}>{fmt(nrcTotal)} XAF</td>
+                <td style={{ padding: '1px 0', color: '#334155' }}>Non-Recurrent Charge Total</td>
+                <td style={{ textAlign: 'right', padding: '1px 0', fontWeight: 600 }}>{fmt(nrcTotal)} XAF</td>
               </tr>
             )}
             {mrcTotal > 0 && (
               <tr>
-                <td style={{ padding: '2px 0', color: '#334155' }}>Monthly Recurrent Charge Total</td>
-                <td style={{ textAlign: 'right', padding: '2px 0', fontWeight: 600 }}>{fmt(mrcTotal)} XAF</td>
+                <td style={{ padding: '1px 0', color: '#334155' }}>Monthly Recurrent Charge Total</td>
+                <td style={{ textAlign: 'right', padding: '1px 0', fontWeight: 600 }}>{fmt(mrcTotal)} XAF</td>
               </tr>
             )}
             {arcTotal > 0 && (
               <tr>
-                <td style={{ padding: '2px 0', color: '#334155' }}>Annual Recurrent Charge Total</td>
-                <td style={{ textAlign: 'right', padding: '2px 0', fontWeight: 600 }}>{fmt(arcTotal)} XAF</td>
+                <td style={{ padding: '1px 0', color: '#334155' }}>Annual Recurrent Charge Total</td>
+                <td style={{ textAlign: 'right', padding: '1px 0', fontWeight: 600 }}>{fmt(arcTotal)} XAF</td>
               </tr>
             )}
             {data.applyVat && (
               <tr>
-                <td style={{ padding: '2px 0', color: '#334155' }}>VAT (19.25%)</td>
-                <td style={{ textAlign: 'right', padding: '2px 0', fontWeight: 600 }}>{fmt(vatAmount)} XAF</td>
+                <td style={{ padding: '1px 0', color: '#334155' }}>VAT (19.25%)</td>
+                <td style={{ textAlign: 'right', padding: '1px 0', fontWeight: 600 }}>{fmt(vatAmount)} XAF</td>
               </tr>
             )}
-            <tr style={{ borderTop: '2px solid #1e3a5f' }}>
-              <td style={{ padding: '6px 0 2px', fontWeight: 700, fontSize: '11pt' }}>Grand Total</td>
-              <td style={{ textAlign: 'right', padding: '6px 0 2px', fontWeight: 700, fontSize: '11pt' }}>{fmt(grandTotal)} XAF</td>
+            <tr style={{ borderTop: `2px solid ${S.navy}` }}>
+              <td style={{ padding: '4px 0 1px', fontWeight: 700, fontSize: S.subhead }}>Grand Total</td>
+              <td style={{ textAlign: 'right', padding: '4px 0 1px', fontWeight: 700, fontSize: S.subhead }}>{fmt(grandTotal)} XAF</td>
             </tr>
           </tbody>
         </table>
@@ -203,14 +215,14 @@ export function InvoicePreview({
 
       {/* ─── Amount in Words ─── */}
       {grandTotal > 0 && (
-        <div style={{ marginTop: 14, fontSize: '10pt', fontStyle: 'italic', color: '#475569' }}>
-          The total amount to be paid is <strong style={{ color: '#1e3a5f' }}>{amountInWords}</strong>
+        <div style={{ marginTop: S.amounts.marginTop, fontSize: S.small, fontStyle: 'italic', color: '#475569' }}>
+          The total amount to be paid is <strong style={{ color: S.navy }}>{amountInWords}</strong>
         </div>
       )}
 
       {/* ─── Terms ─── */}
-      <div style={{ marginTop: 24, borderTop: '1px solid #cbd5e1', paddingTop: 14, fontSize: '9pt', color: '#64748b' }}>
-        <strong style={{ color: '#334155' }}>Standard Terms &amp; Conditions</strong><br />
+      <div style={{ marginTop: S.terms.marginTop, borderTop: '1px solid #cbd5e1', paddingTop: S.terms.paddingTop, fontSize: S.small, color: '#64748b', lineHeight: 1.4 }}>
+        <strong style={{ color: '#334155', fontSize: S.small }}>Standard Terms &amp; Conditions</strong><br />
         {data.terms.split('\n').map((line, i) => (
           <span key={i}>{esc(line)}<br /></span>
         ))}
