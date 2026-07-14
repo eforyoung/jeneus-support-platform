@@ -126,7 +126,7 @@ export function InvoiceForm() {
     const filename = formData.invoiceNumber
       ? `Invoice-${formData.invoiceNumber.replace(/\//g, '-')}`
       : 'Invoice-draft'
-    generatePDFDirect(formData, companySettings, filename)
+    await generatePDFDirect(formData, companySettings, filename)
   }
 
   async function handleEdit(invoice: any) {

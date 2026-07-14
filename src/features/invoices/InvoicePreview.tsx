@@ -110,7 +110,7 @@ export function InvoicePreview({
 
   return (
     <div id="invoice-preview" style={{
-      fontFamily: 'Georgia, "Times New Roman", serif',
+      fontFamily: 'Helvetica, Arial, "Segoe UI", sans-serif',
       fontSize: S.body,
       color: '#1e293b',
       background: '#fff',
@@ -166,7 +166,7 @@ export function InvoicePreview({
             </td>
             <td style={{ verticalAlign: 'top', textAlign: 'right' }}>
               <span style={{ fontSize: S.body }}>Douala, {formattedDate}</span><br />
-              <strong style={{ fontSize: S.body, fontFamily: 'monospace' }}>{displayNumber}</strong>
+              <strong style={{ fontSize: S.body }}>{displayNumber}</strong>
             </td>
           </tr>
         </tbody>
