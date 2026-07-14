@@ -1,5 +1,6 @@
 export type InvoiceFormData = {
   type: 'proforma' | 'final'
+  invoiceNumber: string
   customerId: string
   customerName: string
   customerAddress: string
@@ -48,4 +49,8 @@ export function computeSubSectionTotal(sub: SubSection): number {
 
 export function computeCategoryTotal(subs: SubSection[]): number {
   return subs.reduce((sum, sub) => sum + computeSubSectionTotal(sub), 0)
+}
+
+export function getTodayFormatted(): string {
+  return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }

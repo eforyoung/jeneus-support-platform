@@ -15,6 +15,7 @@ type CustomerInfo = { id: string; name: string; address: string | null; bp: stri
 export function InvoiceForm() {
   const [formData, setFormData] = useState<InvoiceFormData>({
     type: 'proforma',
+    invoiceNumber: '',
     customerId: '',
     customerName: '',
     customerAddress: '',
@@ -93,11 +94,15 @@ export function InvoiceForm() {
       const result = await saveInvoice(formData, editingId || undefined)
       setSaving(false)
       if (result.success) {
-        setMessage({ type: 'success', text: `Invoice ${result.data?.number || ''} saved.` })
+        const invNum = result.data?.number || ''
+        setMessage({ type: 'success', text: `Invoice ${invNum} saved.` })
         setRefreshHistory((x) => x + 1)
+        // Store the invoice number so preview shows it
+        setFormData((prev) => ({ ...prev, invoiceNumber: invNum }))
         if (!editingId) {
           setFormData((prev) => ({
             ...prev,
+            invoiceNumber: '',
             customerId: '',
             customerName: '',
             customerAddress: '',
@@ -118,7 +123,10 @@ export function InvoiceForm() {
   }
 
   async function handlePDF() {
-    await generatePDF('invoice-preview', 'invoice-download')
+    const filename = formData.invoiceNumber
+      ? `Invoice-${formData.invoiceNumber.replace(/\//g, '-')}`
+      : 'Invoice-draft'
+    await generatePDF('invoice-preview', filename)
   }
 
   async function handleEdit(invoice: any) {
@@ -156,6 +164,7 @@ export function InvoiceForm() {
       setEditingId(fullInvoice.id)
       setFormData({
         type: (fullInvoice.type || 'PROFORMA').toLowerCase() as 'proforma' | 'final',
+        invoiceNumber: fullInvoice.invoiceNumber || '',
         customerId: fullInvoice.customerId || '',
         customerName: fullInvoice.customer?.name || '',
         customerAddress: fullInvoice.customer?.address || '',
@@ -176,8 +185,8 @@ export function InvoiceForm() {
   function handleCancelEdit() {
     setEditingId(null)
     setFormData({
-      type: 'proforma', customerId: '', customerName: '', customerAddress: '',
-      customerBp: '', customerNiu: '', customerRc: '',
+      type: 'proforma', invoiceNumber: '', customerId: '', customerName: '',
+      customerAddress: '', customerBp: '', customerNiu: '', customerRc: '',
       applyVat: true, accountOwner: '', terms: formData.terms,
       categories: { nrc: [], mrc: [], arc: [] },
     })
