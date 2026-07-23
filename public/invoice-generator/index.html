@@ -1,0 +1,1894 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JENEUS CO LTD — Invoice Generator</title>
+<!-- PDF is generated via browser Print (Ctrl+P) -->
+<style>
+/* ─── Reset & Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+  line-height: 1.5;
+  padding: 20px;
+}
+
+/* ─── Layout ─── */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 900px) {
+  .app-container { grid-template-columns: 1fr; }
+}
+
+/* ─── Card ─── */
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* ─── Form Controls ─── */
+.form-group { margin-bottom: 12px; }
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 2px rgba(30,58,95,0.15);
+}
+textarea { resize: vertical; min-height: 60px; }
+
+/* ─── Invoice Type Toggle ─── */
+.invoice-type-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border: 2px solid #1e3a5f;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.invoice-type-toggle button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: #fff;
+  color: #1e3a5f;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.invoice-type-toggle button.active {
+  background: #1e3a5f;
+  color: #fff;
+}
+.invoice-type-toggle button:not(:last-child) {
+  border-right: 1px solid #1e3a5f;
+}
+
+/* ─── Items Table ─── */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.items-table th {
+  background: #1e3a5f;
+  color: #fff;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.items-table th:last-child { width: 40px; }
+.items-table td { padding: 6px 10px; border: 1px solid #e2e8f0; }
+.items-table input {
+  width: 100%;
+  border: none;
+  padding: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+}
+.items-table input:focus { outline: none; background: #f8fafc; }
+.items-table .qty-input { width: 35px; text-align: center; }
+.items-table .price-input { width: 100px; text-align: right; }
+.items-table .total-display { text-align: right; font-weight: 600; }
+
+.btn-add-row {
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #475569;
+}
+.btn-add-row:hover { background: #cbd5e1; }
+
+.btn-remove-row {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.btn-remove-row:hover { background: #fef2f2; }
+
+/* ─── Totals ─── */
+.totals-section { margin-top: 12px; }
+.totals-table {
+  width: 280px;
+  margin-left: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.totals-table td { padding: 6px 10px; }
+.totals-table td:first-child { text-align: right; color: #64748b; }
+.totals-table td:last-child { text-align: right; font-weight: 600; width: 100px; }
+.totals-table .grand-total td {
+  border-top: 2px solid #1e3a5f;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a5f;
+  padding-top: 8px;
+}
+.vat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.vat-toggle input[type="checkbox"] { width: auto; }
+
+/* ─── Invoice Preview ─── */
+.invoice-preview {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 11pt;
+  color: #000;
+  line-height: 1.4;
+  padding: 0;
+}
+
+#invoice-preview-area {
+  background: #fff;
+  padding: 20px;
+  min-height: 400px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Preview Header */
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  border-bottom: 2px solid #1e3a5f;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+.invoice-header .logo-area {
+  width: 80px;
+  height: 80px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #cbd5e1;
+  font-size: 9px;
+  color: #94a3b8;
+  overflow: hidden;
+}
+.invoice-header .logo-area img {
+  max-width: 100%;
+  max-height: 100%;
+}
+.invoice-header .company-info {
+  text-align: right;
+  font-size: 10pt;
+}
+.invoice-header .company-name {
+  font-size: 14pt;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+.invoice-header .invoice-label {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin-top: 4px;
+}
+
+.invoice-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 10pt;
+}
+.invoice-meta .client-info { max-width: 50%; }
+.invoice-meta .date-info { text-align: right; }
+
+.invoice-section-heading {
+  font-style: italic;
+  font-size: 10pt;
+  margin-bottom: 8px;
+}
+
+.category-section-heading {
+  font-weight: 700;
+  font-size: 11pt;
+  margin-bottom: 6px;
+  color: #1e3a5f;
+  border-bottom: 1px solid #1e3a5f;
+  padding-bottom: 2px;
+}
+
+/* Preview Items Table */
+.invoice-items-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 10pt;
+  margin-bottom: 10px;
+}
+.invoice-items-table th {
+  background: #1e3a5f;
+  color: #fff;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 9pt;
+}
+.invoice-items-table th:nth-child(2) { width: 30px; text-align: center; }
+.invoice-items-table th:nth-child(3),
+.invoice-items-table th:nth-child(4) { width: 90px; text-align: right; }
+.invoice-items-table td { padding: 5px 8px; border: 1px solid #ddd; vertical-align: top; line-height: 1.4; }
+.invoice-items-table td:first-child { overflow-wrap: break-word; word-break: break-word; white-space: normal; }
+.invoice-items-table td:nth-child(2) { text-align: center; }
+.invoice-items-table td:nth-child(3),
+.invoice-items-table td:nth-child(4) { text-align: right; }
+
+/* Preview Totals */
+.invoice-totals {
+  width: 280px;
+  margin-left: auto;
+  margin-bottom: 10px;
+  font-size: 10pt;
+}
+.invoice-totals table { width: 100%; border-collapse: collapse; }
+.invoice-totals td { padding: 4px 8px; }
+.invoice-totals td:first-child { text-align: right; }
+.invoice-totals td:last-child { text-align: right; width: 90px; }
+.invoice-totals .grand-total td {
+  border-top: 2px solid #1e3a5f;
+  font-weight: 700;
+  font-size: 11pt;
+}
+
+.amount-in-words {
+  font-style: italic;
+  font-size: 9pt;
+  margin-bottom: 10px;
+}
+
+.terms-section {
+  font-size: 8pt;
+  color: #555;
+  border-top: 1px solid #ddd;
+  padding-top: 6px;
+  margin-top: 6px;
+}
+
+/* ─── Action Buttons ─── */
+.action-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary {
+  background: #1e3a5f;
+  color: #fff;
+}
+.btn-primary:hover { background: #152d4a; }
+.btn-secondary {
+  background: #e2e8f0;
+  color: #475569;
+}
+.btn-secondary:hover { background: #cbd5e1; }
+.btn-success {
+  background: #0f766e;
+  color: #fff;
+}
+.btn-success:hover { background: #0d5f58; }
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+.btn-danger:hover { background: #dc2626; }
+
+/* ─── Invoice History ─── */
+.history-panel {
+  margin-top: 24px;
+}
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.history-item:hover { border-color: #1e3a5f; background: #f8fafc; }
+.history-item .history-info { flex: 1; }
+.history-item .history-actions { display: flex; gap: 6px; }
+.history-item .history-actions button {
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+}
+.history-item .history-actions button:hover { background: #e2e8f0; }
+.history-item .history-number { font-weight: 600; color: #1e3a5f; }
+.history-item .history-client { color: #475569; }
+.history-item .history-amount { font-weight: 600; }
+.empty-history {
+  text-align: center;
+  padding: 30px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ─── Utility ─── */
+.hidden { display: none; }
+.mt-12 { margin-top: 12px; }
+.mb-8 { margin-bottom: 8px; }
+.text-sm { font-size: 12px; }
+.text-muted { color: #94a3b8; }
+
+/* ─── Print styles ─── */
+@media print {
+  body { background: #fff; padding: 0; }
+  .app-container { display: block; }
+  .card { box-shadow: none; border: none; padding: 0; }
+  #invoice-form-panel, .action-bar, .history-panel, .vat-toggle { display: none; }
+  .invoice-preview, #invoice-preview-area { border: none; padding: 20px; }
+  .invoice-header { border-bottom: none; }
+  .invoice-header .logo-area { border: none; }
+  .category-section-heading { border-bottom: none; }
+  .invoice-items-table td, .invoice-items-table th { border: none; }
+  .invoice-totals .grand-total td { border-top: none; }
+  .terms-section { border-top: none; }
+}
+
+/* ─── Section Cards ─── */
+.section-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fafbfc;
+}
+.section-card .section-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.section-card .section-header input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.section-card .section-header input:focus {
+  outline: none;
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 2px rgba(30,58,95,0.15);
+}
+.section-card .section-subtotal {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e3a5f;
+  padding: 6px 8px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 6px;
+}
+.btn-remove-section {
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.btn-remove-section:hover { background: #fef2f2; }
+
+/* ─── Category Cards ─── */
+.category-card { padding: 16px 20px; }
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #1e3a5f;
+}
+.category-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+.subsection-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #fafbfc;
+}
+.subsection-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.subsection-header input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.subsection-header input:focus {
+  outline: none;
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 2px rgba(30,58,95,0.15);
+}
+.subsection-subtotal {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e3a5f;
+  padding: 6px 8px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ─── LEFT: Form Panel ─── -->
+  <div id="invoice-form-panel">
+
+    <div class="card">
+      <h2>Invoice Type</h2>
+      <div class="invoice-type-toggle" id="invoice-type-toggle">
+        <button type="button" class="active" data-type="proforma">Proforma Invoice</button>
+        <button type="button" data-type="final">Final Invoice</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Invoice Details</h2>
+
+      <div class="form-group">
+        <label>Invoice Number</label>
+        <input type="text" id="invoice-number" placeholder="Auto-generated" readonly>
+      </div>
+
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="invoice-date">
+      </div>
+
+
+    </div>
+
+    <div class="card">
+      <h2>Company Settings</h2>
+      <div class="form-group">
+        <label>Account Manager</label>
+        <input type="text" id="company-account-owner" placeholder="e.g. John Doe">
+      </div>
+      <div style="font-size:12px;color:#64748b;padding-top:4px;">
+        <div>NIU: <strong id="company-niu-display">M092217601761D</strong></div>
+        <div>RC: <strong id="company-rc-display">RC/DLA/2022/B/5078</strong></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Saved Customers</h2>
+
+      <div class="form-group">
+        <label>Select Customer</label>
+        <select id="customer-dropdown">
+          <option value="">-- Select a customer --</option>
+        </select>
+      </div>
+
+      <div id="customer-list"></div>
+
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button type="button" class="btn btn-secondary" id="btn-toggle-customer-form" style="flex:1;padding:8px;font-size:12px;">+ Add Customer</button>
+      </div>
+
+      <div id="add-customer-form" class="hidden" style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;margin-top:4px;">
+        <div class="form-group">
+          <label>Customer Name *</label>
+          <input type="text" id="new-customer-name" placeholder="e.g. Ennovative Gaming Sarl">
+        </div>
+        <div class="form-group">
+          <label>Address</label>
+          <input type="text" id="new-customer-address" placeholder="e.g. Yaounde Bastos Cameroon">
+        </div>
+        <div class="form-group">
+          <label>BP / PO Box</label>
+          <input type="text" id="new-customer-bp" placeholder="e.g. BP 35598 Yaounde">
+        </div>
+        <div class="form-group">
+          <label>NIU Number</label>
+          <input type="text" id="new-customer-niu" placeholder="e.g. M052014544337K">
+        </div>
+        <div class="form-group">
+          <label>RC Number</label>
+          <input type="text" id="new-customer-rc" placeholder="e.g. RC/YAO/2020/B/713">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-primary" id="btn-save-customer" style="flex:1;padding:8px;font-size:12px;">Save Customer</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-customer" style="flex:1;padding:8px;font-size:12px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Client Information</h2>
+      <div class="form-group">
+        <label>Client Name</label>
+        <input type="text" id="client-name" placeholder="e.g. Ennovative Gaming Sarl">
+      </div>
+      <div class="form-group">
+        <label>Address</label>
+        <input type="text" id="client-address" placeholder="e.g. Yaounde Bastos Cameroon">
+      </div>
+      <div class="form-group">
+        <label>BP / PO Box</label>
+        <input type="text" id="client-bp" placeholder="e.g. BP 35598 Yaounde">
+      </div>
+      <div class="form-group">
+        <label>NIU Number</label>
+        <input type="text" id="client-niu" placeholder="e.g. M052014544337K">
+      </div>
+      <div class="form-group">
+        <label>RC Number</label>
+        <input type="text" id="client-rc" placeholder="e.g. RC/YAO/2020/B/713">
+      </div>
+    </div>
+
+    <div class="card category-card">
+      <div class="category-header">
+        <span class="category-label">Non-Recurrent Charge</span>
+        <button type="button" class="btn btn-secondary btn-add-subsection" data-category="nrc" style="padding:4px 12px;font-size:11px;">+ Add Sub-Section</button>
+      </div>
+      <div class="subsections-container" id="nrc-subsections"></div>
+    </div>
+
+    <div class="card category-card">
+      <div class="category-header">
+        <span class="category-label">Monthly Recurrent Charge</span>
+        <button type="button" class="btn btn-secondary btn-add-subsection" data-category="mrc" style="padding:4px 12px;font-size:11px;">+ Add Sub-Section</button>
+      </div>
+      <div class="subsections-container" id="mrc-subsections"></div>
+    </div>
+
+    <div class="card category-card">
+      <div class="category-header">
+        <span class="category-label">Annual Recurrent Charge</span>
+        <button type="button" class="btn btn-secondary btn-add-subsection" data-category="arc" style="padding:4px 12px;font-size:11px;">+ Add Sub-Section</button>
+      </div>
+      <div class="subsections-container" id="arc-subsections"></div>
+    </div>
+
+    <div class="card">
+      <h2>Totals &amp; VAT</h2>
+      <div class="vat-toggle">
+        <input type="checkbox" id="apply-vat" checked>
+        <label for="apply-vat" style="text-transform:none;letter-spacing:0;">Apply VAT (19.25%)</label>
+      </div>
+      <div class="totals-section">
+        <table class="totals-table">
+          <tr id="nrc-row"><td>Non-Recurrent Charge Total</td><td id="nrc-display">0 XAF</td></tr>
+          <tr id="mrc-row"><td>Monthly Recurrent Charge Total</td><td id="mrc-display">0 XAF</td></tr>
+          <tr id="arc-row"><td>Annual Recurrent Charge Total</td><td id="arc-display">0 XAF</td></tr>
+          <tr id="vat-row"><td>VAT (19.25%)</td><td id="vat-display">0 XAF</td></tr>
+          <tr class="grand-total"><td>Grand Total</td><td id="total-display">0 XAF</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Terms &amp; Conditions</h2>
+      <div class="form-group">
+        <textarea id="terms-text" rows="5">All prices are in XAF
+All prices are exclusive of taxes
+Quote is valid for 90 days
+Delivery leadtime is 1 day as equipment is in stock
+All NRC to be paid upfront</textarea>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button type="button" class="btn btn-primary" id="btn-generate-pdf">Generate PDF</button>
+      <button type="button" class="btn btn-secondary" id="btn-save">Save Invoice</button>
+      <button type="button" class="btn btn-secondary" id="btn-clear">New Invoice</button>
+    </div>
+
+    <div class="card" id="github-sync-card">
+      <h2>GitHub Sync</h2>
+      <div class="form-group">
+        <label>GitHub Token</label>
+        <input type="password" id="github-token" placeholder="ghp_..." autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Repository</label>
+        <input type="text" id="github-repo" placeholder="eforyoung/jeneus-invoice-generator">
+      </div>
+      <div class="form-group">
+        <label>Branch</label>
+        <input type="text" id="github-branch" placeholder="main">
+      </div>
+      <div class="form-group">
+        <label>File Path</label>
+        <input type="text" id="github-filepath" placeholder="invoices/invoices.json">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="btn-github-push" style="padding:8px 16px;font-size:12px;">☁️ Save to GitHub</button>
+        <button type="button" class="btn btn-secondary" id="btn-github-pull" style="padding:8px 16px;font-size:12px;">⬇️ Load from GitHub</button>
+      </div>
+      <div id="github-status" style="margin-top:8px;font-size:12px;color:#64748b;"></div>
+    </div>
+  </div>
+
+  <!-- ─── RIGHT: Preview & History ─── -->
+  <div>
+    <div class="card" id="invoice-preview-card">
+      <h2>Invoice Preview</h2>
+      <div class="invoice-preview" id="invoice-preview-area">
+        <!-- Preview rendered here by JS -->
+      </div>
+    </div>
+
+    <div class="card history-panel">
+      <h2>Invoice History</h2>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary" id="btn-export-json" style="padding:6px 14px;font-size:12px;">📥 Export All</button>
+        <button type="button" class="btn btn-secondary" id="btn-import-json" style="padding:6px 14px;font-size:12px;">📤 Import</button>
+        <input type="file" id="import-file-input" accept=".json" style="display:none;">
+      </div>
+      <div id="invoice-history-list">
+        <div class="empty-history">No invoices yet. Generate one to see it here.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==============================================================
+   JENEUS CO LTD — Invoice Generator
+   All application logic is in this single script block.
+   ============================================================== */
+
+// ─── State ───
+const STATE_KEY = 'jeneus-invoices';
+const COUNTER_KEY = 'jeneus-invoice-counter';
+const VAT_RATE = 0.1925;
+const COMPANY_NIU = 'M092217601761D'; // JENEUS CO LTD permanent NIU (change in source if needed)
+const COMPANY_RC = 'RC/DLA/2022/B/5078'; // JENEUS CO LTD permanent RC (change in source if needed)
+const ACCOUNT_OWNER_KEY = 'jeneus-account-owner';
+const GITHUB_TOKEN_KEY = 'jeneus-github-token';
+const GITHUB_REPO_KEY = 'jeneus-github-repo';
+const GITHUB_BRANCH_KEY = 'jeneus-github-branch';
+const GITHUB_FILEPATH_KEY = 'jeneus-github-filepath';
+let currentInvoiceType = 'proforma';
+let savedInvoices = loadInvoices();
+let currentInvoiceId = null; // for editing an existing saved invoice
+let companyAccountOwner = ''; // editable account owner, persisted in localStorage
+
+// ─── Customer State ───
+const CUSTOMER_KEY = 'jeneus-customers';
+let savedCustomers = [];
+
+function loadCustomers() {
+  try { return JSON.parse(localStorage.getItem(CUSTOMER_KEY)) || []; }
+  catch { return []; }
+}
+function saveCustomers() {
+  safeSetItem(CUSTOMER_KEY, JSON.stringify(savedCustomers));
+}
+
+savedCustomers = loadCustomers();
+
+// ─── Sub-Section Management ───
+function addSubSection(category, heading, items) {
+  const containerId = category + '-subsections';
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+
+  const subId = 'sub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 5);
+
+  const card = document.createElement('div');
+  card.className = 'subsection-card';
+  card.id = subId;
+  card.dataset.category = category;
+
+  const itemList = items && items.length > 0 ? items : [{ description: '', qty: 1, unitPrice: 0 }];
+  let itemsHtml = '';
+  itemList.forEach(item => {
+    const desc = escapeHtml(item.description || '');
+    itemsHtml += `<tr class="item-row">
+      <td><input type="text" class="desc-input" placeholder="Item description" value="${desc}"></td>
+      <td><input type="number" class="qty-input" value="${item.qty || 1}" min="1" style="width:35px;text-align:center;"></td>
+      <td><input type="number" class="price-input" value="${item.unitPrice || 0}" min="0" style="width:100px;text-align:right;"></td>
+      <td class="total-display" style="text-align:right;font-weight:600;">${((item.qty || 1) * (item.unitPrice || 0)).toLocaleString('en-US')}</td>
+      <td><button type="button" class="btn-remove-row" title="Remove">×</button></td>
+    </tr>`;
+  });
+
+  card.innerHTML = `
+    <div class="subsection-header">
+      <input type="text" class="subheading-input" value="${escapeHtml(heading || '')}" placeholder="Sub-section (e.g. Equipment)">
+      <button type="button" class="btn-remove-section" data-sub-id="${subId}">Remove</button>
+    </div>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th style="width:35px;text-align:center;">Qty</th>
+          <th style="width:110px;text-align:right;">Unit Price</th>
+          <th style="width:100px;text-align:right;">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+    </table>
+    <button type="button" class="btn-add-row" style="margin-top:6px;">+ Add Item</button>
+    <div class="subsection-subtotal" data-subtotal-display>Subtotal: 0 XAF</div>
+  `;
+
+  container.appendChild(card);
+
+  card.querySelectorAll('.item-row').forEach(row => attachRowListeners(row));
+
+  card.querySelector('.btn-add-row').addEventListener('click', function() {
+    const tbody = this.previousElementSibling.querySelector('tbody');
+    const tr = document.createElement('tr');
+    tr.className = 'item-row';
+    tr.innerHTML = `
+      <td><input type="text" class="desc-input" placeholder="Item description"></td>
+      <td><input type="number" class="qty-input" value="1" min="1" style="width:35px;text-align:center;"></td>
+      <td><input type="number" class="price-input" value="0" min="0" style="width:100px;text-align:right;"></td>
+      <td class="total-display" style="text-align:right;font-weight:600;">0</td>
+      <td><button type="button" class="btn-remove-row" title="Remove">×</button></td>
+    `;
+    tbody.appendChild(tr);
+    attachRowListeners(tr);
+    recalcTotals();
+  });
+
+  card.querySelector('.subheading-input').addEventListener('input', recalcTotals);
+
+  card.querySelector('.btn-remove-section').addEventListener('click', function() {
+    const sid = this.dataset.subId;
+    const subCard = document.getElementById(sid);
+    if (!subCard) return;
+    if (!confirm('Remove this sub-section and all its items?')) return;
+    subCard.remove();
+    recalcTotals();
+  });
+
+  recalcTotals();
+  return subId;
+}
+
+function getAllData() {
+  const result = { nrc: [], mrc: [], arc: [] };
+  document.querySelectorAll('.subsection-card').forEach(card => {
+    const category = card.dataset.category || 'nrc';
+    const heading = card.querySelector('.subheading-input').value.trim();
+    const items = [];
+    card.querySelectorAll('.item-row').forEach(row => {
+      const desc = row.querySelector('.desc-input').value.trim();
+      const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+      const price = parseFloat(row.querySelector('.price-input').value) || 0;
+      if (desc || qty > 0 || price > 0) {
+        items.push({ description: desc, qty, unitPrice: price, total: qty * price });
+      }
+    });
+    result[category].push({ heading: heading || 'Untitled', items });
+  });
+  return result;
+}
+
+// ─── Customer Dropdown ───
+function renderCustomerDropdown() {
+  const dropdown = document.getElementById('customer-dropdown');
+  if (!dropdown) return;
+  const selected = dropdown.value;
+  dropdown.innerHTML = '<option value="">-- Select a customer --</option>';
+
+  const sorted = [...savedCustomers].sort((a, b) => a.name.localeCompare(b.name));
+  sorted.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c._id;
+    opt.textContent = c.name;
+    dropdown.appendChild(opt);
+  });
+
+  if (selected && [...dropdown.options].some(o => o.value === selected)) {
+    dropdown.value = selected;
+  }
+
+  // Render customer list with delete buttons
+  const listContainer = document.getElementById('customer-list');
+  if (!listContainer) return;
+  listContainer.innerHTML = '';
+
+  if (savedCustomers.length === 0) {
+    listContainer.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:4px 0;">No saved customers yet.</div>';
+    return;
+  }
+
+  sorted.forEach(c => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:13px;';
+    row.innerHTML = `
+      <span>${escapeHtml(c.name)}</span>
+      <button type="button" class="customer-delete-btn" data-id="${c._id}" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;" title="Delete customer">×</button>
+    `;
+    listContainer.appendChild(row);
+  });
+}
+
+function fillClientFieldsFromCustomer(customerId) {
+  if (!customerId) return;
+  const customer = savedCustomers.find(c => c._id === customerId);
+  if (!customer) return;
+
+  document.getElementById('client-name').value = customer.name || '';
+  document.getElementById('client-address').value = customer.address || '';
+  document.getElementById('client-bp').value = customer.bp || '';
+  document.getElementById('client-niu').value = customer.niu || '';
+  document.getElementById('client-rc').value = customer.rc || '';
+  // Trigger totals recalculation and preview update
+  document.querySelectorAll('.item-row').forEach(() => {});
+  // Direct call to recalcTotals which exists globally
+  if (typeof recalcTotals === 'function') recalcTotals();
+}
+
+// ─── Customer CRUD ───
+function addCustomerFromForm() {
+  const name = document.getElementById('new-customer-name').value.trim();
+  if (!name) {
+    alert('Customer name is required.');
+    return;
+  }
+
+  const customer = {
+    _id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    name: name,
+    address: document.getElementById('new-customer-address').value.trim(),
+    bp: document.getElementById('new-customer-bp').value.trim(),
+    niu: document.getElementById('new-customer-niu').value.trim(),
+    rc: document.getElementById('new-customer-rc').value.trim(),
+    savedAt: new Date().toISOString()
+  };
+
+  savedCustomers.push(customer);
+  saveCustomers();
+  renderCustomerDropdown();
+
+  // Clear form
+  document.getElementById('new-customer-name').value = '';
+  document.getElementById('new-customer-address').value = '';
+  document.getElementById('new-customer-bp').value = '';
+  document.getElementById('new-customer-niu').value = '';
+  document.getElementById('new-customer-rc').value = '';
+
+  // Hide form
+  document.getElementById('add-customer-form').classList.add('hidden');
+  document.getElementById('btn-toggle-customer-form').textContent = '+ Add Customer';
+}
+
+function deleteCustomer(customerId) {
+  const customer = savedCustomers.find(c => c._id === customerId);
+  if (!customer) return;
+  if (!confirm('Delete customer "' + customer.name + '"?')) return;
+
+  savedCustomers = savedCustomers.filter(c => c._id !== customerId);
+  saveCustomers();
+  renderCustomerDropdown();
+
+  // If the deleted customer was selected, clear client fields
+  const dropdown = document.getElementById('customer-dropdown');
+  if (dropdown && dropdown.value === '') {
+    document.getElementById('client-name').value = '';
+    document.getElementById('client-address').value = '';
+    document.getElementById('client-bp').value = '';
+    document.getElementById('client-niu').value = '';
+    document.getElementById('client-rc').value = '';
+    if (typeof recalcTotals === 'function') recalcTotals();
+  }
+}
+
+// ─── DOM Refs ───
+const $ = (id) => document.getElementById(id);
+const invoiceDate = $('invoice-date');
+const invoiceNumber = $('invoice-number');
+const clientName = $('client-name');
+const clientAddress = $('client-address');
+const clientBp = $('client-bp');
+const clientNiu = $('client-niu');
+const clientRc = $('client-rc');
+const applyVat = $('apply-vat');
+const subtotalDisplay = $('subtotal-display');
+const vatDisplay = $('vat-display');
+const totalDisplay = $('total-display');
+const termsText = $('terms-text');
+const previewArea = $('invoice-preview-area');
+const historyList = $('invoice-history-list');
+
+// ─── Safe localStorage helpers ───
+function safeGetItem(key, fallback) {
+  try { return localStorage.getItem(key); } catch { return fallback; }
+}
+function safeSetItem(key, val) {
+  try { localStorage.setItem(key, val); } catch {}
+}
+
+// ─── Account Owner persistence ───
+function loadAccountOwner() {
+  try { return localStorage.getItem(ACCOUNT_OWNER_KEY) || ''; }
+  catch { return ''; }
+}
+function saveAccountOwner(val) {
+  safeSetItem(ACCOUNT_OWNER_KEY, val);
+}
+
+// ─── Invoice Numbering ───
+function getNextInvoiceNumber() {
+  let counter = parseInt(safeGetItem(COUNTER_KEY, '0'), 10);
+  if (isNaN(counter) || counter < 0) counter = 0;
+  counter++;
+  if (counter < 1000) counter = 1000;
+  safeSetItem(COUNTER_KEY, counter.toString());
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const num = String(counter).padStart(4, '0');
+  return `${num}/JE/${dd}/${mm}/${yyyy}`;
+}
+
+function setCounterFromNumber(numStr) {
+  const match = numStr.match(/^(\d+)/);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    const current = parseInt(safeGetItem(COUNTER_KEY, '0'), 10);
+    if (num > current) {
+      safeSetItem(COUNTER_KEY, num.toString());
+    }
+  }
+}
+
+// ─── Load / Save Invoices ───
+function migrateInvoice(inv) {
+  if (inv.categories) return inv;
+
+  // Version 2: flat sections array → convert to categories
+  if (inv.sections) {
+    const cats = { nrc: [], mrc: [], arc: [] };
+    inv.sections.forEach(s => {
+      const h = s.heading.toLowerCase().trim();
+      if (h === 'monthly recurrent charge') cats.mrc.push(s);
+      else if (h === 'annual recurrent charge') cats.arc.push(s);
+      else cats.nrc.push(s);
+    });
+    inv.categories = cats;
+    delete inv.sections;
+    delete inv.subtotal;
+    delete inv.total;
+    return inv;
+  }
+
+  // Version 1: flat items + sectionHeading → convert
+  const heading = inv.sectionHeading || 'Non-Recurrent Charge';
+  const items = inv.items || [];
+  const cat = heading.toLowerCase().trim() === 'monthly recurrent charge' ? 'mrc'
+    : heading.toLowerCase().trim() === 'annual recurrent charge' ? 'arc' : 'nrc';
+  const categories = { nrc: [], mrc: [], arc: [] };
+  categories[cat].push({ heading, items });
+  inv.categories = categories;
+  delete inv.sectionHeading;
+  delete inv.items;
+  delete inv.subtotal;
+  delete inv.total;
+
+  // Recompute totals
+  let nrc = 0, mrc = 0, arc = 0;
+  Object.entries(inv.categories).forEach(([cat, subs]) => {
+    const sum = subs.reduce((s, sub) => s + sub.items.reduce((a, i) => a + i.total, 0), 0);
+    if (cat === 'mrc') mrc = sum;
+    else if (cat === 'arc') arc = sum;
+    else nrc = sum;
+  });
+  const gs = nrc + mrc + arc;
+  inv.nonRecurrentTotal = nrc;
+  inv.monthlyRecurrentTotal = mrc;
+  inv.annualRecurrentTotal = arc;
+  inv.vatAmount = inv.applyVat ? gs * VAT_RATE : 0;
+  inv.grandTotal = gs + inv.vatAmount;
+  return inv;
+}
+
+function loadInvoices() {
+  try {
+    const invoices = JSON.parse(localStorage.getItem(STATE_KEY)) || [];
+    return invoices.map(migrateInvoice);
+  } catch { return []; }
+}
+
+function saveInvoices() {
+  safeSetItem(STATE_KEY, JSON.stringify(savedInvoices));
+}
+
+// ─── Collect form data ───
+function getFormData() {
+  const allData = getAllData();
+
+  const calcSum = (subs) => subs.reduce((s, sub) => s + sub.items.reduce((a, i) => a + i.total, 0), 0);
+  const nrcTotal = calcSum(allData.nrc);
+  const mrcTotal = calcSum(allData.mrc);
+  const arcTotal = calcSum(allData.arc);
+
+  const grandSubtotal = nrcTotal + mrcTotal + arcTotal;
+  const vatAmount = applyVat.checked ? grandSubtotal * VAT_RATE : 0;
+  const grandTotal = grandSubtotal + vatAmount;
+
+  return {
+    type: currentInvoiceType,
+    number: invoiceNumber.value,
+    date: invoiceDate.value,
+    categories: allData,
+    clientName: clientName.value,
+    clientAddress: clientAddress.value,
+    clientBp: clientBp.value,
+    clientNiu: clientNiu.value,
+    clientRc: clientRc.value,
+    applyVat: applyVat.checked,
+    accountOwner: companyAccountOwner,
+    terms: termsText.value,
+    nonRecurrentTotal: nrcTotal,
+    monthlyRecurrentTotal: mrcTotal,
+    annualRecurrentTotal: arcTotal,
+    vatAmount: vatAmount,
+    grandTotal: grandTotal
+  };
+}
+
+
+// ─── Update Preview ───
+function updatePreview() {
+  const data = getFormData();
+
+  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const amountInWords = numberToWords(Math.round(data.grandTotal));
+  const typeLabel = data.type === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE';
+  const esc = escapeHtml;
+
+  let clientInfo = esc(data.clientName);
+  if (data.clientAddress) clientInfo += '<br>' + esc(data.clientAddress);
+  if (data.clientBp) clientInfo += '<br>' + esc(data.clientBp);
+  if (data.clientNiu) clientInfo += '<br>NIU: ' + esc(data.clientNiu);
+  if (data.clientRc) clientInfo += '<br>RC: ' + esc(data.clientRc);
+
+  const formattedDate = data.date
+    ? new Date(data.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '________';
+
+  function renderSubSections(subs) {
+    let html = '';
+    subs.forEach(sub => {
+      let itemsHtml = '';
+      sub.items.forEach(item => {
+        itemsHtml += `<tr>
+          <td>${esc(item.description || '—')}</td>
+          <td style="text-align:center;">${item.qty}</td>
+          <td>${fmt(item.unitPrice)}</td>
+          <td>${fmt(item.total)}</td>
+        </tr>`;
+      });
+      const subTotal = sub.items.reduce((s, i) => s + i.total, 0);
+      const label = esc(sub.heading || 'Untitled');
+      html += `
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:700;font-size:10pt;margin-bottom:4px;color:#1e3a5f;">${label}</div>
+          <table class="invoice-items-table" style="margin-bottom:4px;">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align:center;">Qty</th>
+                <th style="text-align:right;">Unit Price (XAF)</th>
+                <th style="text-align:right;">Total Price (XAF)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml || '<tr><td colspan="4" style="color:#999;text-align:center;">No items</td></tr>'}
+            </tbody>
+          </table>
+          <div style="text-align:right;font-size:9pt;font-weight:600;color:#1e3a5f;">${label} Total: ${fmt(subTotal)} XAF</div>
+        </div>`;
+    });
+    return html;
+  }
+
+  let allSectionsHtml = '';
+
+  if (data.categories.nrc.length > 0) {
+    allSectionsHtml += `<div style="margin-bottom:12px;"><div class="category-section-heading">NON-RECURRENT CHARGE</div>${renderSubSections(data.categories.nrc)}</div>`;
+  }
+  if (data.categories.mrc.length > 0) {
+    allSectionsHtml += `<div style="margin-bottom:12px;"><div class="category-section-heading">MONTHLY RECURRENT CHARGE</div>${renderSubSections(data.categories.mrc)}</div>`;
+  }
+  if (data.categories.arc.length > 0) {
+    allSectionsHtml += `<div style="margin-bottom:12px;"><div class="category-section-heading">ANNUAL RECURRENT CHARGE</div>${renderSubSections(data.categories.arc)}</div>`;
+  }
+
+  const vatRow = data.applyVat
+    ? `<tr><td>VAT (19.25%)</td><td>${fmt(data.vatAmount)} XAF</td></tr>`
+    : '';
+
+  let catTotalsHtml = '';
+  if (data.nonRecurrentTotal > 0) catTotalsHtml += `<tr><td>Non-Recurrent Charge Total</td><td>${fmt(data.nonRecurrentTotal)} XAF</td></tr>`;
+  if (data.monthlyRecurrentTotal > 0) catTotalsHtml += `<tr><td>Monthly Recurrent Charge Total</td><td>${fmt(data.monthlyRecurrentTotal)} XAF</td></tr>`;
+  if (data.annualRecurrentTotal > 0) catTotalsHtml += `<tr><td>Annual Recurrent Charge Total</td><td>${fmt(data.annualRecurrentTotal)} XAF</td></tr>`;
+
+  const acctOwner = (companyAccountOwner || '').trim();
+
+  previewArea.innerHTML = `
+    <div class="invoice-header">
+      <div class="logo-area" id="preview-logo">
+        <img src="logo.jpg" alt="JENEUS CO LTD Logo" style="max-width:100%;max-height:100%;">
+      </div>
+      <div class="company-info">
+        <div class="company-name">JENEUS CO. LTD</div>
+        <div style="font-size:9pt;">Immeuble Commercial Bank, 4th Floor</div>
+        <div style="font-size:9pt;">Rue Njo Njo Bonapriso</div>
+        <div style="font-size:9pt;">NIU: ${COMPANY_NIU}</div>
+        <div style="font-size:9pt;">RC: ${COMPANY_RC}</div>
+        ${acctOwner ? `<div style="font-size:9pt;">Account Manager: ${esc(acctOwner)}</div>` : ''}
+        <div class="invoice-label">${typeLabel}</div>
+      </div>
+    </div>
+
+    <div class="invoice-meta">
+      <div class="client-info">
+        <strong>Client:</strong><br>
+        ${clientInfo}
+      </div>
+      <div class="date-info">
+        Douala, ${formattedDate}<br>
+        <strong>${esc(data.number)}</strong>
+      </div>
+    </div>
+
+    ${allSectionsHtml}
+
+    <div class="invoice-totals">
+      <table>
+        ${catTotalsHtml}
+        ${vatRow}
+        <tr class="grand-total"><td>Grand Total</td><td>${fmt(data.grandTotal)} XAF</td></tr>
+      </table>
+    </div>
+
+    ${data.grandTotal > 0 ? `<div class="amount-in-words">The total amount to be paid is <strong>${amountInWords}</strong></div>` : ''}
+
+    <div class="terms-section">
+      <strong>Standard Terms &amp; Conditions</strong><br>
+      ${esc(data.terms).replace(/\n/g, '<br>')}
+    </div>
+  `;
+}
+
+// ─── Number to Words ───
+function numberToWords(n) {
+  if (n === 0) return 'zero francs';
+
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+                 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+                 'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  function convertBelow1000(num) {
+    let result = '';
+    if (num >= 100) {
+      result += ones[Math.floor(num / 100)] + ' hundred ';
+      num %= 100;
+    }
+    if (num >= 20) {
+      result += tens[Math.floor(num / 10)] + ' ';
+      num %= 10;
+    }
+    if (num > 0) {
+      result += ones[num] + ' ';
+    }
+    return result.trim();
+  }
+
+  let result = '';
+  if (n >= 1000000) {
+    const millions = Math.floor(n / 1000000);
+    result += convertBelow1000(millions) + ' million ';
+    n %= 1000000;
+  }
+  if (n >= 1000) {
+    const thousands = Math.floor(n / 1000);
+    result += convertBelow1000(thousands) + ' thousand ';
+    n %= 1000;
+  }
+  if (n > 0) {
+    result += convertBelow1000(n);
+  }
+
+  return result.trim() + (result.trim() ? ' francs' : '');
+}
+
+// ─── Totals Calculation ───
+function recalcTotals() {
+  const cats = { nrc: 0, mrc: 0, arc: 0 };
+
+  document.querySelectorAll('.subsection-card').forEach(card => {
+    const category = card.dataset.category || 'nrc';
+    const heading = card.querySelector('.subheading-input').value.trim() || '';
+    let sectionSum = 0;
+
+    card.querySelectorAll('.item-row').forEach(row => {
+      const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+      const price = parseFloat(row.querySelector('.price-input').value) || 0;
+      const total = qty * price;
+      row.querySelector('.total-display').textContent = total.toLocaleString('en-US');
+      sectionSum += total;
+    });
+
+    const subtotalDisplay = card.querySelector('[data-subtotal-display]');
+    if (subtotalDisplay) {
+      const label = heading || 'Untitled';
+      subtotalDisplay.textContent = label + ' Total: ' + Math.round(sectionSum).toLocaleString('en-US') + ' XAF';
+    }
+
+    cats[category] += sectionSum;
+  });
+
+  const grandSubtotal = cats.nrc + cats.mrc + cats.arc;
+  const vat = applyVat.checked ? grandSubtotal * VAT_RATE : 0;
+  const total = grandSubtotal + vat;
+
+  document.getElementById('nrc-display').textContent = Math.round(cats.nrc).toLocaleString('en-US') + ' XAF';
+  document.getElementById('mrc-display').textContent = Math.round(cats.mrc).toLocaleString('en-US') + ' XAF';
+  document.getElementById('arc-display').textContent = Math.round(cats.arc).toLocaleString('en-US') + ' XAF';
+  vatDisplay.textContent = Math.round(vat).toLocaleString('en-US') + ' XAF';
+  totalDisplay.textContent = Math.round(total).toLocaleString('en-US') + ' XAF';
+
+  document.getElementById('nrc-row').style.display = cats.nrc > 0 ? '' : 'none';
+  document.getElementById('mrc-row').style.display = cats.mrc > 0 ? '' : 'none';
+  document.getElementById('arc-row').style.display = cats.arc > 0 ? '' : 'none';
+  document.getElementById('vat-row').style.display = applyVat.checked ? '' : 'none';
+
+  updatePreview();
+}
+
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function attachRowListeners(row) {
+  row.querySelector('.qty-input').addEventListener('input', recalcTotals);
+  row.querySelector('.price-input').addEventListener('input', recalcTotals);
+  row.querySelector('.desc-input').addEventListener('input', recalcTotals);
+  row.querySelector('.btn-remove-row').addEventListener('click', function() {
+    if (document.querySelectorAll('.item-row').length > 1) {
+      row.remove();
+      recalcTotals();
+    }
+  });
+}
+
+// ─── Render Invoice History ───
+function renderHistory() {
+  historyList.innerHTML = '';
+  if (savedInvoices.length === 0) {
+    historyList.innerHTML = '<div class="empty-history">No invoices yet. Generate one to see it here.</div>';
+    return;
+  }
+  // Show newest first
+  [...savedInvoices].reverse().forEach((inv, idx) => {
+    const realIdx = savedInvoices.length - 1 - idx;
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="history-info">
+        <span class="history-number">${inv.number}</span>
+        <span class="history-client"> — ${inv.clientName || 'No client'}</span>
+        <span style="color:#94a3b8;font-size:11px;display:block;">
+          ${new Date(inv.date + 'T00:00:00').toLocaleDateString('en-GB')} · ${inv.type === 'proforma' ? 'Proforma' : 'Final'}
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="history-amount">${Math.round(inv.grandTotal || inv.total || 0).toLocaleString('en-US')} XAF</span>
+        <div class="history-actions">
+          <button data-action="load" data-idx="${realIdx}">Edit</button>
+          <button data-action="delete" data-idx="${realIdx}" style="color:#ef4444;">×</button>
+        </div>
+      </div>
+    `;
+    historyList.appendChild(div);
+  });
+}
+
+// ─── PDF Generation ───
+function generatePDF() {
+  const data = getFormData();
+  if (!data.clientName) {
+    alert('Please enter the client name before generating a PDF.');
+    return;
+  }
+  const hasAnyItems = data.categories && Object.values(data.categories).some(subs => subs.some(sub => sub.items && sub.items.length > 0));
+  if (!hasAnyItems) {
+    alert('Please add at least one item to the invoice.');
+    return;
+  }
+
+  updatePreview();
+  // Set document title for PDF filename (e.g. "Invoice-1000-JE-23-07-2026")
+  const prevTitle = document.title;
+  const numPart = data.number.replace(/\//g, '-');
+  document.title = `Invoice-${numPart}`;
+  // Use browser's native print which supports Save as PDF
+  // Print styles hide the form panel and show only the invoice preview
+  setTimeout(() => {
+    window.print();
+    // Restore title after print dialog closes
+    setTimeout(() => { document.title = prevTitle; }, 1000);
+  }, 300);
+}
+
+// ─── Save Current Invoice ───
+function saveCurrentInvoice() {
+  const data = getFormData();
+  if (!data.clientName) {
+    alert('Please enter at least the client name before saving.');
+    return;
+  }
+  const hasItems = data.categories && Object.values(data.categories).some(subs => subs.some(sub => sub.items && sub.items.length > 0));
+  if (!hasItems) {
+    alert('Please add at least one item to the invoice.');
+    return;
+  }
+
+  const record = {
+    ...data,
+    savedAt: new Date().toISOString()
+  };
+
+  if (currentInvoiceId !== null) {
+    const idx = savedInvoices.findIndex(i => i._id === currentInvoiceId);
+    if (idx !== -1) {
+      record._id = currentInvoiceId;
+      savedInvoices[idx] = record;
+    }
+  } else {
+    record._id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    savedInvoices.push(record);
+  }
+
+  saveInvoices();
+  renderHistory();
+  alert('Invoice saved!');
+}
+
+// ─── Load an invoice from history ───
+function loadInvoice(idx) {
+  const inv = savedInvoices[idx];
+  if (!inv) return;
+
+  currentInvoiceId = inv._id;
+  currentInvoiceType = inv.type;
+  document.querySelectorAll('.invoice-type-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === inv.type);
+  });
+  invoiceNumber.value = inv.number;
+  setCounterFromNumber(inv.number);
+  invoiceDate.value = inv.date;
+  clientName.value = inv.clientName || '';
+  clientAddress.value = inv.clientAddress || '';
+  clientBp.value = inv.clientBp || '';
+  clientNiu.value = inv.clientNiu || '';
+  clientRc.value = inv.clientRc || '';
+  termsText.value = inv.terms || '';
+  applyVat.checked = inv.applyVat !== false;
+
+  // Clear all category containers
+  ['nrc', 'mrc', 'arc'].forEach(cat => {
+    document.getElementById(cat + '-subsections').innerHTML = '';
+  });
+
+  // Load sub-sections into their categories
+  const cats = inv.categories || { nrc: [{ heading: 'Non-Recurrent Charge', items: [] }], mrc: [], arc: [] };
+  Object.entries(cats).forEach(([cat, subs]) => {
+    if (subs && subs.length > 0) {
+      subs.forEach(sub => addSubSection(cat, sub.heading, sub.items));
+    }
+  });
+
+  recalcTotals();
+  document.querySelector('.app-container').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ─── Clear form for new invoice ───
+function clearForm() {
+  if (savedInvoices.length > 0 && !confirm('Clear the current form and start a new invoice?')) return;
+
+  currentInvoiceId = null;
+  currentInvoiceType = 'proforma';
+  document.querySelectorAll('.invoice-type-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === 'proforma');
+  });
+  const today = new Date().toISOString().split('T')[0];
+  invoiceDate.value = today;
+  clientName.value = '';
+  clientAddress.value = '';
+  clientBp.value = '';
+  clientNiu.value = '';
+  clientRc.value = '';
+  termsText.value = 'All prices are in XAF\nAll prices are exclusive of taxes\nQuote is valid for 90 days\nDelivery leadtime is 1 day as equipment is in stock\nAll NRC to be paid upfront';
+  applyVat.checked = true;
+  // Clear all sub-sections and add one default NRC sub-section
+  ['nrc', 'mrc', 'arc'].forEach(cat => {
+    document.getElementById(cat + '-subsections').innerHTML = '';
+  });
+  addSubSection('nrc', 'Non-Recurrent Charge', []);
+  recalcTotals();
+}
+
+// ─── Delete invoice ───
+function deleteInvoice(idx) {
+  if (!confirm(`Delete invoice ${savedInvoices[idx].number}?`)) return;
+  savedInvoices.splice(idx, 1);
+  saveInvoices();
+  renderHistory();
+}
+
+// ─── GitHub Settings persistence ───
+function loadGithubSetting(key) {
+  try { return localStorage.getItem(key) || ''; } catch { return ''; }
+}
+function saveGithubSetting(key, val) {
+  try { localStorage.setItem(key, val); } catch {}
+}
+
+// ─── Export all invoices as JSON file ───
+function exportInvoices() {
+  if (savedInvoices.length === 0) {
+    alert('No invoices to export.');
+    return;
+  }
+  const data = JSON.stringify(savedInvoices, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const now = new Date();
+  a.download = `jeneus-invoices-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── Import invoices from JSON file ───
+function importInvoices(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('Not an array');
+      const count = data.length;
+      if (count === 0) throw new Error('File is empty');
+
+      const existingIds = new Set(savedInvoices.map(i => i._id));
+      let added = 0;
+      data.forEach(inv => {
+        const migrated = migrateInvoice(inv);
+        if (!existingIds.has(migrated._id)) {
+          savedInvoices.push(migrated);
+          existingIds.add(migrated._id);
+          added++;
+        }
+      });
+
+      if (added === 0) {
+        alert('All invoices in the file already exist in local storage.');
+      } else {
+        saveInvoices();
+        renderHistory();
+        alert(`Imported ${added} invoice(s). ${count - added} duplicate(s) skipped.`);
+      }
+    } catch (err) {
+      alert('Failed to import: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ─── GitHub Sync: Push invoices to GitHub repo ───
+async function githubSyncPush() {
+  const token = document.getElementById('github-token').value.trim();
+  const repo = document.getElementById('github-repo').value.trim();
+  const branch = document.getElementById('github-branch').value.trim() || 'main';
+  const filepath = document.getElementById('github-filepath').value.trim();
+
+  if (!token || !repo || !filepath) {
+    alert('Please fill in Token, Repository, and File Path.');
+    return;
+  }
+
+  const statusEl = document.getElementById('github-status');
+  statusEl.textContent = 'Pushing to GitHub...';
+  statusEl.style.color = '#64748b';
+
+  try {
+    const content = JSON.stringify(savedInvoices, null, 2);
+    const contentEncoded = btoa(unescape(encodeURIComponent(content)));
+
+    let sha = null;
+    try {
+      const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filepath}?ref=${branch}`, {
+        headers: { 'Authorization': `token ${token}` }
+      });
+      if (getRes.ok) {
+        const existing = await getRes.json();
+        sha = existing.sha;
+      }
+    } catch {}
+
+    const body = {
+      message: `Update invoices (${new Date().toLocaleDateString('en-GB')})`,
+      content: contentEncoded,
+      branch: branch
+    };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${filepath}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+
+    statusEl.textContent = `✓ Synced ${savedInvoices.length} invoice(s) to ${repo}/${filepath}`;
+    statusEl.style.color = '#0f766e';
+  } catch (err) {
+    statusEl.textContent = '✗ Sync failed: ' + err.message;
+    statusEl.style.color = '#ef4444';
+  }
+}
+
+// ─── GitHub Sync: Pull invoices from GitHub repo ───
+async function githubSyncPull() {
+  const token = document.getElementById('github-token').value.trim();
+  const repo = document.getElementById('github-repo').value.trim();
+  const branch = document.getElementById('github-branch').value.trim() || 'main';
+  const filepath = document.getElementById('github-filepath').value.trim();
+
+  if (!token || !repo || !filepath) {
+    alert('Please fill in Token, Repository, and File Path.');
+    return;
+  }
+
+  const statusEl = document.getElementById('github-status');
+  statusEl.textContent = 'Fetching from GitHub...';
+  statusEl.style.color = '#64748b';
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${filepath}?ref=${branch}`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) throw new Error('File not found in repository');
+      const err = await res.json();
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const decoded = decodeURIComponent(escape(atob(data.content)));
+    const invoices = JSON.parse(decoded);
+    if (!Array.isArray(invoices)) throw new Error('Invalid invoices data');
+
+    const existingIds = new Set(savedInvoices.map(i => i._id));
+    let replaced = 0, added = 0;
+    invoices.forEach(inv => {
+      const migrated = migrateInvoice(inv);
+      if (existingIds.has(migrated._id)) {
+        const idx = savedInvoices.findIndex(i => i._id === migrated._id);
+        if (idx !== -1) { savedInvoices[idx] = migrated; replaced++; }
+      } else {
+        savedInvoices.push(migrated);
+        existingIds.add(migrated._id);
+        added++;
+      }
+    });
+
+    saveInvoices();
+    renderHistory();
+    statusEl.textContent = `✓ Loaded ${invoices.length} invoice(s) from GitHub (${replaced} updated, ${added} new)`;
+    statusEl.style.color = '#0f766e';
+  } catch (err) {
+    statusEl.textContent = '✗ Load failed: ' + err.message;
+    statusEl.style.color = '#ef4444';
+  }
+}
+
+// ─── Initialize ───
+function init() {
+  const today = new Date().toISOString().split('T')[0];
+  invoiceDate.value = today;
+
+  invoiceNumber.value = getNextInvoiceNumber();
+
+  // Load account owner from localStorage
+  companyAccountOwner = loadAccountOwner();
+  const acctOwnerInput = document.getElementById('company-account-owner');
+  if (acctOwnerInput) {
+    acctOwnerInput.value = companyAccountOwner;
+    acctOwnerInput.addEventListener('input', function() {
+      companyAccountOwner = this.value.trim();
+      saveAccountOwner(companyAccountOwner);
+      updatePreview();
+    });
+  }
+
+  document.querySelectorAll('.invoice-type-toggle button').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.invoice-type-toggle button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentInvoiceType = this.dataset.type;
+      updatePreview();
+    });
+  });
+
+  applyVat.addEventListener('change', recalcTotals);
+
+  // Event: Add sub-section buttons (delegated)
+  document.querySelectorAll('.btn-add-subsection').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const cat = this.dataset.category;
+      addSubSection(cat, '', []);
+    });
+  });
+
+  // Start with one default sub-section in NRC
+  addSubSection('nrc', 'Non-Recurrent Charge', []);
+
+  $('btn-save').addEventListener('click', saveCurrentInvoice);
+
+  $('btn-generate-pdf').addEventListener('click', generatePDF);
+
+  $('btn-clear').addEventListener('click', function() {
+    invoiceNumber.value = getNextInvoiceNumber();
+    clearForm();
+  });
+
+  historyList.addEventListener('click', function(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx, 10);
+    if (btn.dataset.action === 'load') {
+      loadInvoice(idx);
+    } else if (btn.dataset.action === 'delete') {
+      deleteInvoice(idx);
+    }
+  });
+
+  let autoSaveTimer;
+  document.addEventListener('input', function() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      recalcTotals();
+    }, 150);
+  });
+
+  // Event: Customer dropdown select
+  const custDropdown = document.getElementById('customer-dropdown');
+  if (custDropdown) {
+    custDropdown.addEventListener('change', function() {
+      fillClientFieldsFromCustomer(this.value);
+    });
+  }
+
+  // Event: Toggle add customer form
+  const toggleBtn = document.getElementById('btn-toggle-customer-form');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      const form = document.getElementById('add-customer-form');
+      if (!form) return;
+      const isHidden = form.classList.toggle('hidden');
+      this.textContent = isHidden ? '+ Add Customer' : '− Cancel';
+    });
+  }
+
+  // Event: Save customer
+  const saveBtn = document.getElementById('btn-save-customer');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', addCustomerFromForm);
+  }
+
+  // Event: Cancel customer form
+  const cancelBtn = document.getElementById('btn-cancel-customer');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function() {
+      document.getElementById('add-customer-form').classList.add('hidden');
+      document.getElementById('btn-toggle-customer-form').textContent = '+ Add Customer';
+      document.getElementById('new-customer-name').value = '';
+      document.getElementById('new-customer-address').value = '';
+      document.getElementById('new-customer-bp').value = '';
+      document.getElementById('new-customer-niu').value = '';
+      document.getElementById('new-customer-rc').value = '';
+    });
+  }
+
+  // Event: Customer delete buttons (delegated)
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.customer-delete-btn');
+    if (btn) {
+      deleteCustomer(btn.dataset.id);
+    }
+  });
+
+  // ─── Export / Import ───
+  $('btn-export-json').addEventListener('click', exportInvoices);
+  $('btn-import-json').addEventListener('click', function() {
+    $('import-file-input').click();
+  });
+  $('import-file-input').addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+      importInvoices(e.target.files[0]);
+    }
+    e.target.value = '';
+  });
+
+  // ─── GitHub Sync ───
+  function loadAndPopulateGithubSettings() {
+    const fields = {
+      'github-token': GITHUB_TOKEN_KEY,
+      'github-repo': GITHUB_REPO_KEY,
+      'github-branch': GITHUB_BRANCH_KEY,
+      'github-filepath': GITHUB_FILEPATH_KEY
+    };
+    Object.entries(fields).forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = loadGithubSetting(key);
+    });
+  }
+  loadAndPopulateGithubSettings();
+
+  ['github-token', 'github-repo', 'github-branch', 'github-filepath'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const keyMap = {
+        'github-token': GITHUB_TOKEN_KEY,
+        'github-repo': GITHUB_REPO_KEY,
+        'github-branch': GITHUB_BRANCH_KEY,
+        'github-filepath': GITHUB_FILEPATH_KEY
+      };
+      el.addEventListener('input', function() {
+        saveGithubSetting(keyMap[id], this.value);
+      });
+    }
+  });
+
+  $('btn-github-push').addEventListener('click', githubSyncPush);
+  $('btn-github-pull').addEventListener('click', githubSyncPull);
+
+  renderHistory();
+  // Render customers
+  renderCustomerDropdown();
+  updatePreview();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
